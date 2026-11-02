@@ -177,6 +177,10 @@ export async function reserveCredits(
   generationJobId: string | null,
   metadata: Record<string, unknown>,
 ): Promise<void> {
+  if (!Number.isInteger(creditsDelta)) {
+    throw new Error("Credit delta must be an integer usage unit");
+  }
+
   const { error } = await supabaseAdmin.rpc("adjust_credits", {
     p_user_id: userId,
     p_event_type: eventType,

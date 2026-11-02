@@ -322,13 +322,16 @@ router.post(
         estimatedCost,
       });
 
+      // Credits are integer usage units, not currency. The estimated model
+      // cost is stored separately on the job; charging a fractional rupee
+      // amount here would violate the integer ledger column.
       await reserveCredits(
         ownerId,
         "generation_start",
-        -estimatedCost,
+        -1,
         `gen_${job.id}`,
         job.id,
-        { documentType, projectId },
+        { documentType, projectId, estimatedCost },
       );
     } catch (err: any) {
       logger.error({ err, ownerId, projectId }, "failed to enqueue generation");
@@ -542,10 +545,14 @@ router.post(
       await reserveCredits(
         ownerId,
         "section_regenerate",
-        -(regenJob.estimated_cost ?? 0),
+        -1,
         `regen_${regenJob.id}`,
         regenJob.id,
-        { sectionId, parentJobId: job.id },
+        {
+          sectionId,
+          parentJobId: job.id,
+          estimatedCost: regenJob.estimated_cost ?? 0,
+        },
       );
     } catch (err: any) {
       logger.error({ err, ownerId, jobId: id }, "failed to enqueue section regeneration");

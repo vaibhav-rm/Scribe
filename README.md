@@ -19,7 +19,7 @@ AI Academic Document Generation SaaS for college students. Students upload or se
   packages/
     shared/       # Shared Zod schemas + TypeScript types
   supabase/
-    migrations/   # SQL migrations (001_initial.sql … 009_document_template_spec.sql)
+    migrations/   # SQL migrations (001_initial.sql … 010_generation_job_updated_at.sql)
     seed.sql      # Optional seed data
   .env.example    # Environment variable template (no secrets)
 ```
@@ -73,6 +73,7 @@ cp apps/web/.env.example apps/web/.env  # if you create one
    7. `supabase/migrations/007_moderation_hardening.sql`
    8. `supabase/migrations/008_atomic_billing_grant.sql`
    9. `supabase/migrations/009_document_template_spec.sql`
+   10. `supabase/migrations/010_generation_job_updated_at.sql`
 4. Optionally run `supabase/seed.sql` for sample colleges/departments/templates
 5. Create the three storage buckets (or they're created by the migration):
    - `project-resources` (private)
@@ -187,8 +188,9 @@ Run all migrations in order in the SQL Editor of your Supabase project:
 7. `supabase/migrations/007_moderation_hardening.sql` — Prevent role escalation and unreviewed public-template changes
 8. `supabase/migrations/008_atomic_billing_grant.sql` — Atomic, idempotent 30-day Pro-pass grant
 9. `supabase/migrations/009_document_template_spec.sql` — Preserve template formatting when re-exporting edited documents
+10. `supabase/migrations/010_generation_job_updated_at.sql` — Add the missing `generation_jobs.updated_at` column used by job progress updates
 
-This creates all tables, indexes, RLS policies, triggers, storage buckets, and server-side functions. Apply every migration in order; `006`–`009` are required for existing projects created before the security, billing, and export fixes.
+This creates all tables, indexes, RLS policies, triggers, storage buckets, and server-side functions. Apply every migration in order; `006`–`010` are required for existing projects created before the security, billing, export, and job-timestamp fixes.
 
 ### Generation execution model
 

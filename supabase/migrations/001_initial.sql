@@ -150,6 +150,7 @@ create table public.generation_jobs (
   estimated_cost numeric,
   actual_cost numeric,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   started_at timestamptz,
   completed_at timestamptz
 );
