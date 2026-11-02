@@ -28,7 +28,7 @@ const envSchema = z.object({
   // AI providers
   AI_PROVIDER: z.enum(["gemini", "xai", "anthropic"]).default("gemini"),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default("gemini-1.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
   XAI_API_KEY: z.string().optional(),
   XAI_MODEL: z.string().default("grok-3"),
   ANTHROPIC_API_KEY: z.string().optional(),

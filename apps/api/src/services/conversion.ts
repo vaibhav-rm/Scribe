@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -65,9 +65,7 @@ export class LibreOfficeConverter implements DocumentConverter {
     }
     try {
       // Synchronously probe for the executable
-      require("node:child_process").execFileSync(this.libreOfficePath, [
-        "--version",
-      ]);
+      execFileSync(this.libreOfficePath, ["--version"]);
       return true;
     } catch {
       return false;

@@ -131,7 +131,7 @@ From the repo root:
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server only) | `...` |
 | `AI_PROVIDER` | `gemini`, `xai`, or `anthropic` | `gemini` |
 | `GEMINI_API_KEY` | Gemini API key | `...` |
-| `GEMINI_MODEL` | Gemini model name | `gemini-1.5-flash` |
+| `GEMINI_MODEL` | Gemini model name | `gemini-3.8-flash` |
 | `XAI_API_KEY` | xAI Grok API key (optional) | `...` |
 | `ANTHROPIC_API_KEY` | Anthropic Claude key (optional) | `...` |
 | `RAZORPAY_KEY_ID` | Razorpay key ID (test mode OK) | `...` |
@@ -247,7 +247,7 @@ Scribe uses Gemini by default. Configure at least one provider:
 ```env
 AI_PROVIDER=gemini
 GEMINI_API_KEY=your-gemini-key
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 ```
 
 Optional providers (extension points, not yet wired to generation):

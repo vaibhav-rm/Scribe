@@ -51,6 +51,23 @@ describe("Document conversion", () => {
       expect(converter.isAvailable()).toBe(false);
     });
 
+    it("probes the configured executable when conversion is enabled", () => {
+      const previousEnabled = process.env.DOC_CONVERSION_ENABLED;
+      const previousPath = process.env.LIBREOFFICE_PATH;
+      // The Node binary is guaranteed to exist and exits 0 for --version.
+      process.env.DOC_CONVERSION_ENABLED = "true";
+      process.env.LIBREOFFICE_PATH = process.execPath;
+      try {
+        const enabledConverter = new LibreOfficeConverter();
+        expect(enabledConverter.isAvailable()).toBe(true);
+      } finally {
+        if (previousEnabled === undefined) delete process.env.DOC_CONVERSION_ENABLED;
+        else process.env.DOC_CONVERSION_ENABLED = previousEnabled;
+        if (previousPath === undefined) delete process.env.LIBREOFFICE_PATH;
+        else process.env.LIBREOFFICE_PATH = previousPath;
+      }
+    });
+
     it("reports pdf as supported format", () => {
       expect(converter.supportedFormats).toContain("pdf");
     });
