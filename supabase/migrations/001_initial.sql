@@ -514,13 +514,13 @@ on conflict (id) do nothing;
 -- Storage RLS: users can only read/write their own objects, scoped by bucket
 create policy storage_project_resources_owner on storage.objects
   for all using (
-    bucket_id = 'project-resources' and auth.uid()::text = owner
+    bucket_id = 'project-resources' and owner_id = auth.uid()::text
   );
 create policy storage_templates_owner on storage.objects
   for all using (
-    bucket_id = 'templates' and auth.uid()::text = owner
+    bucket_id = 'templates' and owner_id = auth.uid()::text
   );
 create policy storage_generated_documents_owner on storage.objects
   for all using (
-    bucket_id = 'generated-documents' and auth.uid()::text = owner
+    bucket_id = 'generated-documents' and owner_id = auth.uid()::text
   );
