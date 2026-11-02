@@ -111,7 +111,7 @@ export async function loadAccessibleTemplateVersion(
   const { data, error } = await supabaseAdmin
     .from("template_versions")
     .select(
-      "id, template_id, version_number, storage_path, parsed_specification, parsing_status, validation_warnings, templates!inner(owner_id, visibility, verification_status)",
+      "id, template_id, version_number, storage_path, parsed_specification, parsing_status, validation_warnings, templates!template_versions_template_id_fkey!inner(owner_id, visibility, verification_status)",
     )
     .eq("id", templateVersionId)
     .single();

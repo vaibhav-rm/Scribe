@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const rows: any[] = [];
+const selectedColumns: string[] = [];
 
 vi.mock("../lib/supabase.js", () => {
   const makeChain = () => {
     const self: any = {
-      select: () => self,
+      select: (columns?: string) => {
+        if (columns) selectedColumns.push(columns);
+        return self;
+      },
       insert: () => self,
       update: () => self,
       delete: () => self,
@@ -30,7 +34,11 @@ vi.mock("../lib/logger.js", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import { loadProjectResources, loadProjectContext } from "./resources.js";
+import {
+  loadProjectResources,
+  loadProjectContext,
+  loadAccessibleTemplateVersion,
+} from "./resources.js";
 
 describe("loadProjectResources", () => {
   beforeEach(() => {
@@ -122,5 +130,56 @@ describe("loadProjectContext", () => {
   it("returns null when the project is missing", async () => {
     const project = await loadProjectContext("p1", "user-1");
     expect(project).toBeNull();
+  });
+});
+
+describe("loadAccessibleTemplateVersion", () => {
+  beforeEach(() => {
+    rows.length = 0;
+    selectedColumns.length = 0;
+  });
+
+  it("disambiguates the template foreign key relationship", async () => {
+    rows.push({
+      id: "version-1",
+      template_id: "template-1",
+      version_number: 1,
+      storage_path: "templates/template-1.docx",
+      parsed_specification: null,
+      parsing_status: "completed",
+      validation_warnings: null,
+      templates: {
+        owner_id: "user-1",
+        visibility: "private",
+        verification_status: "unverified",
+      },
+    });
+
+    const version = await loadAccessibleTemplateVersion("version-1", "user-1");
+
+    expect(version?.id).toBe("version-1");
+    expect(selectedColumns.join(" ")).toContain(
+      "templates!template_versions_template_id_fkey!inner",
+    );
+  });
+
+  it("returns null when the caller cannot access the template", async () => {
+    rows.push({
+      id: "version-1",
+      template_id: "template-1",
+      version_number: 1,
+      storage_path: "templates/template-1.docx",
+      parsed_specification: null,
+      parsing_status: "completed",
+      validation_warnings: null,
+      templates: {
+        owner_id: "someone-else",
+        visibility: "private",
+        verification_status: "unverified",
+      },
+    });
+
+    const version = await loadAccessibleTemplateVersion("version-1", "user-1");
+    expect(version).toBeNull();
   });
 });
