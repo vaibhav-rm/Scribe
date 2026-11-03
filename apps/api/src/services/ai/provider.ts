@@ -92,7 +92,7 @@ export function loadAIConfig(): AIProviderConfig {
     provider: (process.env.AI_PROVIDER as "gemini" | "xai" | "anthropic") ?? "gemini",
     gemini:
       process.env.GEMINI_API_KEY
-        ? { apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL ?? "gemini-3.8-flash" }
+        ? { apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite" }
         : undefined,
     xai:
       process.env.XAI_API_KEY

@@ -15,6 +15,7 @@ vi.mock("../lib/supabase.js", () => {
           is: () => chain,
           order: () => chain,
           limit: () => chain,
+          in: () => chain,
           gte: () => chain,
           maybeSingle: async () => ({ data: state.subscription, error: null }),
           single: async () => ({ data: null, error: null }),

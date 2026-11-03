@@ -325,6 +325,21 @@ All core features implemented and tested:
 - [x] Landing page, auth pages, pricing, legal pages, public template library
 - [x] Dashboard, project management, project detail, templates, billing
 - [x] Projects CRUD with server-side ownership enforcement
+- [x]ion only
+
+---
+
+## Current Status
+
+All core features implemented and tested:
+
+- [x] Monorepo workspace with shared types/schemas
+- [x] Express API with `/api/v1` routes, structured logging, centralized error handling
+- [x] Supabase migrations + RLS policies for all entities
+- [x] Auth: email/password, email verification flow, password reset, sign out, protected routes
+- [x] Landing page, auth pages, pricing, legal pages, public template library
+- [x] Dashboard, project management, project detail, templates, billing
+- [x] Projects CRUD with server-side ownership enforcement
 - [x] Resource ingestion: text, file (PDF/DOCX/TXT/MD), GitHub (bounded README + source ingestion)
 - [x] Template upload + DOCX parsing with specification JSON, review/edit, and new versions
 - [x] AI generation pipeline (Gemini): knowledge extraction, outline, section-by-section generation, validation, DOCX assembly

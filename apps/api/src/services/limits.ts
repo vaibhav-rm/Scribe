@@ -113,6 +113,8 @@ export async function countUserGenerationsThisMonth(
     .from("generation_jobs")
     .select("id", { count: "exact", head: true })
     .eq("owner_id", userId)
+    // Failed and cancelled attempts should not consume the monthly allowance.
+    .in("status", ["queued", "processing", "completed"])
     .gte("created_at", monthStart.toISOString());
 
   if (error) {

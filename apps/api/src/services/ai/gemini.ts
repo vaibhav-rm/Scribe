@@ -1,6 +1,5 @@
 import {
   GoogleGenerativeAI,
-  GenerativeModel,
   GenerationConfig,
   SchemaType,
 } from "@google/generative-ai";
@@ -23,20 +22,11 @@ export class GeminiProvider implements AIProvider {
   readonly name = "Google Gemini";
   readonly model: string;
 
-  private readonly genModel: GenerativeModel;
-
   constructor(config: { apiKey: string; model: string }) {
     if (!config.apiKey) {
       throw new Error("Gemini API key is required");
     }
-    const genAI = new GoogleGenerativeAI(config.apiKey);
     this.model = config.model;
-    this.genModel = genAI.getGenerativeModel({
-      model: config.model,
-      generationConfig: {
-        responseMimeType: "application/json",
-      },
-    });
   }
 
   async generateStructuredOutput<T>(input: {
@@ -58,18 +48,17 @@ export class GeminiProvider implements AIProvider {
 
     const targetModel = overrideModel || this.model;
 
-    // Build a model instance per-request when model override is requested,
-    // otherwise reuse the shared instance.
+    // Build a model per request so the response schema always matches the
+    // caller's Zod schema. Reusing a schema-less model made Gemini return
+    // arbitrary JSON shapes that later failed Zod validation.
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = overrideModel && overrideModel !== this.model
-      ? genAI.getGenerativeModel({
-          model: targetModel,
-          generationConfig: this.buildGenerationConfig(schema, {
-            maxOutputTokens,
-            temperature,
-          }),
-        })
-      : this.genModel;
+    const model = genAI.getGenerativeModel({
+      model: targetModel,
+      generationConfig: this.buildGenerationConfig(schema, {
+        maxOutputTokens,
+        temperature,
+      }),
+    });
 
     // Combine system prompt + user prompt into a single content block with
     // explicit JSON instruction. System instructions are kept separate from
@@ -77,7 +66,7 @@ export class GeminiProvider implements AIProvider {
     const prompt = `${systemPrompt}\n\n---\n\nUser request and project data:\n${userPrompt}\n\n---\n\nRespond with valid JSON matching the requested schema. Do not include markdown fences or explanatory text outside the JSON.`;
 
     const result = await this.withRetry(async () => {
-      const result = await model.generateContent(prompt);
+      const result = await scheduleGeminiRequest(() => model.generateContent(prompt));
       const response = result.response;
       const text = response.text() || "{}";
 
@@ -130,20 +119,18 @@ export class GeminiProvider implements AIProvider {
   }> {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const targetModel = input.model || this.model;
-    const model = input.model && input.model !== this.model
-      ? genAI.getGenerativeModel({
-          model: targetModel,
-          generationConfig: this.buildGenerationConfig(undefined, {
-            maxOutputTokens: input.maxOutputTokens,
-            temperature: input.temperature,
-          }),
-        })
-      : this.genModel;
+    const model = genAI.getGenerativeModel({
+      model: targetModel,
+      generationConfig: this.buildGenerationConfig(undefined, {
+        maxOutputTokens: input.maxOutputTokens,
+        temperature: input.temperature,
+      }),
+    });
 
     const prompt = `${input.systemPrompt}\n\n---\n\n${input.userPrompt}`;
 
     const result = await this.withRetry(async () => {
-      const resp = await model.generateContent(prompt);
+      const resp = await scheduleGeminiRequest(() => model.generateContent(prompt));
       const text = resp.response.text() || "";
       return { text, model: targetModel, provider: "gemini" as const };
     });
@@ -155,7 +142,7 @@ export class GeminiProvider implements AIProvider {
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
       const m = genAI.getGenerativeModel({ model: this.model });
-      await m.generateContent("ping");
+      await scheduleGeminiRequest(() => m.generateContent("ping"));
       return true;
     } catch (err) {
       logger.warn({ provider: "gemini", err: String(err) }, "Gemini health check failed");
@@ -164,13 +151,13 @@ export class GeminiProvider implements AIProvider {
   }
 
   estimateCost(inputTokens: number, outputTokens: number): number {
-    // Gemini 1.5 Flash pricing (per 1M tokens), in INR (approximate).
-    // These are estimates; actual billing is via Google Cloud.
-    const inputPer1M = 0.075 * 83; // $0.075 -> ~₹6.23 per 1M input tokens
-    const outputPer1M = 0.30 * 83; // $0.30 -> ~₹24.90 per 1M output tokens
+    // Gemini 3.5 Flash-Lite list prices (USD per 1M tokens) converted to INR.
+    // This is an estimate only; actual billing is via Google Cloud.
+    const inputPer1M = 0.30 * 83; // $0.30 -> ~₹24.90 per 1M input tokens
+    const outputPer1M = 2.50 * 83; // $2.50 -> ~₹207.50 per 1M output tokens
     const cost = (inputTokens / 1_000_000) * inputPer1M +
       (outputTokens / 1_000_000) * outputPer1M;
-    return Math.round(cost * 100) / 100; // paise-level precision
+    return Math.round(cost * 100) / 100;
   }
 
   private buildGenerationConfig(
@@ -211,7 +198,10 @@ export class GeminiProvider implements AIProvider {
         if (!providerErr.retryable || attempt === maxRetries) {
           throw providerErr;
         }
-        const backoffMs = Math.min(1000 * 2 ** attempt, 8000);
+        const backoffMs =
+          providerErr.code === "rate_limit"
+            ? Math.min(5000 * 2 ** attempt, 30000)
+            : Math.min(1000 * 2 ** attempt, 8000);
         await sleep(backoffMs);
       }
     }
@@ -237,7 +227,13 @@ function normalizeGeminiError(err: any, provider: string): AIProviderError {
   const status = err?.status ?? err?.statusCode;
   const message = err?.message ?? String(err);
 
-  // Rate limit
+  // A daily quota cannot recover by retrying within this request. Surface it
+  // immediately instead of sleeping through several pointless attempts.
+  if (/per.?day|daily|RPD|GenerateRequestsPerDay/i.test(message)) {
+    return new AIProviderErrorWrap("quota_exhausted", message, provider, false, status);
+  }
+
+  // Per-minute rate limit
   if (status === 429 || /rate.?limit|quota/i.test(message)) {
     return new AIProviderErrorWrap("rate_limit", message, provider, true, status);
   }
@@ -296,17 +292,56 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const DEFAULT_MIN_REQUEST_INTERVAL_MS = 6500;
+let geminiRequestChain: Promise<unknown> = Promise.resolve();
+let lastGeminiRequestStartedAt = 0;
+
+function getMinRequestInterval(): number {
+  // Unit tests use mocked responses and should not wait between calls.
+  if (process.env.NODE_ENV === "test") return 0;
+
+  const raw = Number(process.env.GEMINI_MIN_REQUEST_INTERVAL_MS);
+  if (!Number.isFinite(raw) || raw < 0) return DEFAULT_MIN_REQUEST_INTERVAL_MS;
+  return raw;
+}
+
+/**
+ * Serialize Gemini requests and space their start times. This keeps a
+ * section-by-section generation under free-tier requests-per-minute limits.
+ * It is process-local; run a single API/worker process per free-tier key.
+ */
+function scheduleGeminiRequest<T>(fn: () => Promise<T>): Promise<T> {
+  const run = geminiRequestChain.then(async () => {
+    const interval = getMinRequestInterval();
+    const wait = Math.max(
+      0,
+      lastGeminiRequestStartedAt + interval - Date.now(),
+    );
+    if (wait > 0) await sleep(wait);
+    lastGeminiRequestStartedAt = Date.now();
+    return fn();
+  });
+
+  // Keep the chain alive even when a request fails.
+  geminiRequestChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return run;
+}
+
 /**
  * Convert a Zod schema (or JSON Schema-like object) into Gemini's
  * responseSchema format. Falls back to a generic object schema on failure.
  */
-function convertToGeminiSchema(schema: any): any {
+export function convertToGeminiSchema(schema: any): any {
   // If it's already a Gemini-compatible schema, pass through
   if (schema && schema.type) return schema;
 
   // Zod schema object: look for ._def
   if (schema?._def) {
-    return zodToGemini(schema._def);
+    return zodToGemini(schema._def) ?? { type: SchemaType.OBJECT };
   }
 
   // Plain JSON Schema-like
@@ -314,10 +349,9 @@ function convertToGeminiSchema(schema: any): any {
     return {
       type: SchemaType.OBJECT,
       properties: Object.fromEntries(
-        Object.entries(schema.properties).map(([k, v]: [string, any]) => [
-          k,
-          convertToGeminiSchema(v),
-        ]),
+        Object.entries(schema.properties)
+          .map(([k, v]: [string, any]) => [k, convertToGeminiSchema(v)])
+          .filter(([, v]) => v != null),
       ),
       required: schema.required || [],
     };
@@ -327,19 +361,36 @@ function convertToGeminiSchema(schema: any): any {
   return { type: SchemaType.OBJECT };
 }
 
-function zodToGemini(def: any): any {
+function zodToGemini(def: any): any | null {
   const zodType = def?.typeName;
   switch (zodType) {
     case "ZodObject": {
-      const shape = def?.shape ?? {};
+      // In Zod 3 `shape` is a function; in Zod 4 it is a plain object.
+      const shape =
+        typeof def?.shape === "function" ? def.shape() : (def?.shape ?? {});
+      const properties: Record<string, any> = {};
+      const required: string[] = [];
+
+      for (const [key, value] of Object.entries(shape)) {
+        const converted = zodToGemini((value as any)._def);
+        if (!converted) continue;
+
+        properties[key] = converted;
+
+        const fieldType = (value as any)._def?.typeName;
+        if (
+          fieldType !== "ZodOptional" &&
+          fieldType !== "ZodDefault" &&
+          fieldType !== "ZodNullable"
+        ) {
+          required.push(key);
+        }
+      }
+
       return {
         type: SchemaType.OBJECT,
-        properties: Object.fromEntries(
-          Object.entries(shape).map(([k, v]: [string, any]) => [
-            k, zodToGemini(v._def),
-          ]),
-        ),
-        required: def?.requiredKeys?.() ?? [],
+        properties,
+        ...(required.length > 0 ? { required } : {}),
       };
     }
     case "ZodString":
@@ -351,18 +402,27 @@ function zodToGemini(def: any): any {
     case "ZodArray":
       return {
         type: SchemaType.ARRAY,
-        items: def?.type?.element ? zodToGemini(def.type.element._def) : { type: SchemaType.STRING },
+        items: def?.type?._def
+          ? zodToGemini(def.type._def) ?? { type: SchemaType.STRING }
+          : { type: SchemaType.STRING },
       };
     case "ZodOptional":
-      return zodToGemini(def?.innerType?._def ?? def?.innerType);
+    case "ZodDefault":
     case "ZodNullable":
-      return zodToGemini(def?.innerType?._def ?? def?.innerType);
+      return zodToGemini(def?.innerType?._def);
     case "ZodEnum":
       return {
         type: SchemaType.STRING,
         enum: def?.options ?? [],
       };
+    case "ZodLiteral":
+      return { type: SchemaType.STRING, enum: [String(def?.value)] };
+    case "ZodRecord":
+      // Gemini's responseSchema has no arbitrary-string-map construct.
+      // Omit unsupported optional fields rather than advertising them as
+      // strings, which would guarantee a Zod validation failure.
+      return null;
     default:
-      return { type: SchemaType.STRING };
+      return null;
   }
 }
