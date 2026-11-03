@@ -3,14 +3,20 @@
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  ArrowUpRight,
   BookOpen,
   Check,
   CheckCircle2,
   FileText,
   GitBranch,
+  Image as ImageIcon,
   LayoutTemplate,
+  Lock,
+  Ruler,
+  ScanLine,
   ShieldCheck,
   Sparkles,
+  Table2,
   Upload,
   Wand2,
 } from "lucide-react";
@@ -24,6 +30,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { HeroScene } from "@/components/marketing/HeroScene";
+import { cn } from "@/lib/utils";
 
 const DOC_TYPES = [
   { name: "Project Synopsis", desc: "Objectives, scope, and methodology at a glance." },
@@ -41,46 +49,107 @@ const STEPS = [
     icon: Upload,
     title: "Add your project sources",
     body: "Paste notes, upload PDFs or DOCX files, and link a public GitHub repository. Only what you add is used.",
+    tone: "text-primary",
+    span: "lg:col-span-5",
   },
   {
     icon: LayoutTemplate,
     title: "Choose or upload a template",
     body: "Bring your college's DOCX format. Scribe reads its structure and keeps your sections in order.",
+    tone: "text-electric",
+    span: "lg:col-span-7",
   },
   {
     icon: Wand2,
     title: "Review the outline",
     body: "The AI proposes a section plan built from your sources. You approve it before a single word is generated.",
+    tone: "text-violet",
+    span: "lg:col-span-7",
   },
   {
     icon: FileText,
     title: "Generate, edit, export",
     body: "Write section by section, edit inline, restore earlier versions, and download a formatted DOCX.",
+    tone: "text-coral",
+    span: "lg:col-span-5",
   },
+];
+
+const FEATURES = [
+  {
+    icon: BookOpen,
+    title: "Source-grounded sections",
+    body: "Every section is written from the resources you added to that project — not from a generic prompt.",
+    tone: "text-primary",
+    bg: "bg-primary/10",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Private by default",
+    body: "Uploads live in private storage. Downloads use short-lived signed URLs.",
+    tone: "text-electric",
+    bg: "bg-electric/10",
+  },
+  {
+    icon: GitBranch,
+    title: "GitHub-aware",
+    body: "Link a public repository and Scribe reads its README and source files.",
+    tone: "text-violet",
+    bg: "bg-violet/10",
+  },
+  {
+    icon: ScanLine,
+    title: "Visible gaps",
+    body: "Missing facts stay visible as placeholders. No invented experiments, results, or references.",
+    tone: "text-coral",
+    bg: "bg-coral/10",
+  },
+];
+
+const FORMAT_ROWS = [
+  { label: "Page", value: "A4 · measured from your DOCX", icon: Ruler },
+  { label: "Margins", value: "Exact section properties preserved", icon: ScanLine },
+  { label: "Tables", value: "Title page, content, declaration, appendix", icon: Table2 },
+  { label: "Headings", value: "Styles, numbering, and spacing kept", icon: LayoutTemplate },
+  { label: "Figures", value: "Reserved image spaces and captions", icon: ImageIcon },
+  { label: "Export", value: "DOCX first · PDF when enabled", icon: Lock },
 ];
 
 export function LandingPage() {
   return (
     <PublicLayout>
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-input">
-        <div className="hero-grid pointer-events-none absolute inset-0 opacity-40" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.16),transparent_58%)]" />
-        <div className="pointer-events-none absolute -right-32 top-10 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-24">
-          <div>
-            <Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary">
-              <Sparkles className="h-3 w-3" /> Built for Indian college projects
-            </Badge>
-            <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-              Your project report,
-              <span className="block text-primary">formatted like your college wants.</span>
+      <section className="relative overflow-hidden border-b border-white/[0.07]">
+        <div className="pointer-events-none absolute inset-0 grid-field opacity-70" />
+        <div className="pointer-events-none absolute -left-32 top-24 h-80 w-80 rounded-full bg-primary/10 blur-[120px]" />
+        <div className="pointer-events-none absolute -right-24 top-8 h-96 w-96 rounded-full bg-electric/[0.07] blur-[130px]" />
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-24 xl:gap-20">
+          <div className="animate-rise">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.06] px-3 py-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                Template-first document engine
+              </span>
+            </div>
+
+            <h1 className="mt-6 max-w-3xl text-balance text-[2.8rem] font-semibold leading-[0.98] tracking-[-0.055em] text-foreground sm:text-6xl lg:text-[4.55rem]">
+              Your project report,{" "}
+              <span className="font-serif font-normal italic text-primary">
+                formatted
+              </span>{" "}
+              like your college wants.
             </h1>
+
             <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Scribe turns your notes, files, and repo into a template-aware
-              academic document. It plans an outline you can review, grounds every
-              section in your sources, and never invents results or references.
+              academic document. It plans an outline you can review, grounds
+              every section in your sources, and never invents results or
+              references.
             </p>
+
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="gap-2">
                 <Link to="/signup">
@@ -88,286 +157,389 @@ export function LandingPage() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link to="/templates">Browse templates</Link>
+                <Link to="/templates">
+                  Browse templates <ArrowUpRight className="h-4 w-4" />
+                </Link>
               </Button>
             </div>
+
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> No invented results
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Visible placeholders
+                <CheckCircle2 className="h-3.5 w-3.5 text-electric" /> Visible placeholders
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> DOCX export
+                <CheckCircle2 className="h-3.5 w-3.5 text-violet" /> DOCX export
               </span>
             </div>
           </div>
 
-          {/* Product preview */}
-          <div className="relative mx-auto w-full max-w-md lg:mx-0">
-            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-primary/20 via-transparent to-primary/10 blur-2xl" />
-            <div className="relative overflow-hidden rounded-2xl border border-input bg-card shadow-lift">
-              <div className="flex items-center justify-between border-b border-input px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                </div>
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  Smart Irrigation System · Synopsis
-                </span>
-              </div>
-              <div className="space-y-4 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold">Outline approved</p>
-                    <p className="text-xs text-muted-foreground">
-                      8 sections · 4 sources used
-                    </p>
-                  </div>
-                  <Badge variant="success">Ready</Badge>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    ["1", "Introduction", true],
-                    ["2", "Problem Statement", true],
-                    ["3", "Literature Review", true],
-                    ["4", "Methodology", true],
-                    ["5", "Implementation", true],
-                    ["6", "Results & Discussion", false],
-                  ].map(([n, label, done]) => (
-                    <div
-                      key={n as string}
-                      className="flex items-center gap-3 rounded-lg border border-input bg-background/60 px-3 py-2"
-                    >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-                        {n}
-                      </span>
-                      <span className="flex-1 text-xs font-medium">{label}</span>
-                      {done ? (
-                        <Check className="h-3.5 w-3.5 text-green-600" />
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">queued</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
-                  Missing facts become visible <code>[PLACEHOLDER]</code> markers.
-                </div>
-              </div>
-            </div>
+          <div className="animate-rise delay-2">
+            <HeroScene />
           </div>
         </div>
       </section>
 
-      {/* Stats strip */}
-      <section className="border-b border-input bg-muted/30">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 py-8 sm:px-6 md:grid-cols-4 lg:px-8">
+      <div className="overflow-hidden border-b border-white/[0.07] bg-white/[0.018] py-3.5">
+        <div className="animate-marquee pause-on-hover flex w-max items-center gap-8">
+          {[0, 1].map((copy) => (
+            <div
+              key={copy}
+              aria-hidden={copy === 1}
+              className="flex items-center gap-8"
+            >
+              {[
+                "Template fidelity",
+                "Source grounding",
+                "Visible placeholders",
+                "Version history",
+                "DOCX export",
+                "Private storage",
+              ].map((item) => (
+                <span
+                  key={`${copy}-${item}`}
+                  className="flex items-center gap-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80"
+                >
+                  <span className="h-1 w-1 rounded-full bg-primary/70" />
+                  {item}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 divide-x divide-white/[0.07] overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.018] md:grid-cols-4">
           {[
             ["8", "document types"],
             ["DOCX", "template-aware export"],
             ["3 / month", "free draft generations"],
-            ["₹0", "to start"],
-          ].map(([value, label]) => (
-            <div key={label}>
-              <p className="text-2xl font-bold tracking-tight">{value}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
+            ["0", "invented results"],
+          ].map(([value, label], index) => (
+            <div
+              key={label}
+              className={cn(
+                "px-5 py-5 sm:px-6",
+                index >= 2 && "border-t border-white/[0.07] md:border-t-0",
+              )}
+            >
+              <p className="font-display text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                {value}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{label}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            How it works
-          </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight">
-            From scattered notes to a reviewable draft
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            A deliberate workflow instead of a single prompt. You stay in control
-            of the outline and every section.
-          </p>
+      <section
+        id="how-it-works"
+        className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24"
+      >
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div className="max-w-2xl">
+            <p className="eyebrow">How it works</p>
+            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+              From scattered notes to a{" "}
+              <span className="font-serif font-normal italic text-electric">
+                reviewable draft
+              </span>
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              A deliberate workflow instead of a single prompt. You stay in
+              control of the outline and every section.
+            </p>
+          </div>
+          <div className="hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground lg:flex">
+            <span className="h-px w-10 bg-primary/40" />
+            Four checkpoints
+          </div>
         </div>
-        <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+
+        <div className="mt-12 grid gap-4 lg:grid-cols-12">
           {STEPS.map((step, index) => (
-            <Card key={step.title} className="relative">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Card
+              key={step.title}
+              className={cn(
+                "group relative overflow-hidden border-white/[0.07] bg-white/[0.018] p-1",
+                step.span,
+              )}
+            >
+              <div className="relative h-full rounded-[calc(var(--radius)-2px)] p-5 sm:p-6">
+                <span className="pointer-events-none absolute -right-1 -top-5 font-display text-[6rem] font-bold leading-none tracking-[-0.08em] text-white/[0.035] transition-colors duration-500 group-hover:text-primary/[0.07]">
+                  0{index + 1}
+                </span>
+                <div className="relative flex items-center justify-between">
+                  <span className={cn("icon-tile h-11 w-11 rounded-xl", step.tone)}>
                     <step.icon className="h-5 w-5" />
                   </span>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    0{index + 1}
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+                    Step 0{index + 1}
                   </span>
                 </div>
-                <h3 className="mt-5 text-sm font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                <h3 className="relative mt-6 text-base font-semibold tracking-[-0.01em]">
+                  {step.title}
+                </h3>
+                <p className="relative mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
                   {step.body}
                 </p>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section className="border-y border-input bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Grounded by design
-              </p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight">
-                Honest AI, not a content vending machine
-              </h2>
-              <p className="mt-3 max-w-lg text-muted-foreground">
-                The generator is built around a simple rule: if your sources do
-                not contain a fact, it must not be invented. You will see where
-                information is missing.
-              </p>
-              <div className="mt-8 space-y-5">
-                {[
-                  {
-                    icon: BookOpen,
-                    title: "Source-grounded sections",
-                    body: "Every section is written from the resources you added to that project.",
-                  },
-                  {
-                    icon: ShieldCheck,
-                    title: "Private by default",
-                    body: "Uploads live in private storage. Downloads use short-lived signed URLs.",
-                  },
-                  {
-                    icon: GitBranch,
-                    title: "GitHub-aware",
-                    body: "Link a public repository and Scribe reads its README and source files.",
-                  },
-                  {
-                    icon: FileText,
-                    title: "Version history",
-                    body: "Edits, regeneration, and restores are snapshotted so you can go back.",
-                  },
-                ].map((feature) => (
-                  <div key={feature.title} className="flex gap-4">
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <feature.icon className="h-4 w-4" />
-                    </span>
+      <section className="border-y border-white/[0.07] bg-[hsl(var(--ink)/0.32)]">
+        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-20 lg:px-8 lg:py-24">
+          <div>
+            <p className="eyebrow">Template fidelity</p>
+            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+              The format is not a{" "}
+              <span className="font-serif font-normal italic text-primary">
+                suggestion.
+              </span>
+            </h2>
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Scribe opens the DOCX you upload, keeps its page setup and styles,
+              and writes into its structure. Tables stay tables. Figure spaces
+              stay reserved. Static sections stay untouched.
+            </p>
+
+            <div className="mt-8 space-y-3">
+              {[
+                "Page size, margins, and section breaks",
+                "Heading styles, numbering, and spacing",
+                "Title page fields and declaration placeholders",
+                "Content tables split across continuation pages",
+                "Figure captions and reserved image areas",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3 text-sm text-foreground/80">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <Button asChild variant="outline" className="mt-8">
+              <Link to="/templates">
+                See how templates work <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-primary/[0.055] blur-2xl" />
+            <div className="glass-panel-strong relative overflow-hidden rounded-3xl p-1">
+              <div className="rounded-[calc(var(--radius)+2px)] border border-white/[0.06] bg-background/60">
+                <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Format receipt
+                    </p>
+                    <p className="mt-1 text-sm font-semibold">RVCE_Synopsis.docx</p>
+                  </div>
+                  <Badge variant="success">
+                    <Lock className="h-3 w-3" /> Template locked
+                  </Badge>
+                </div>
+                <div className="divide-y divide-white/[0.06]">
+                  {FORMAT_ROWS.map((row) => (
+                    <div key={row.label} className="flex items-center gap-3 px-5 py-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-primary">
+                        <row.icon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="w-20 shrink-0 text-xs font-medium text-foreground/70">
+                        {row.label}
+                      </span>
+                      <span className="flex-1 text-xs text-muted-foreground">
+                        {row.value}
+                      </span>
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-white/[0.07] px-5 py-4">
+                  <div className="flex items-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.025] p-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet/10 text-violet">
+                      <ImageIcon className="h-4 w-4" />
+                    </div>
                     <div>
-                      <h3 className="text-sm font-semibold">{feature.title}</h3>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {feature.body}
+                      <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Figure 1 · reserved
+                      </p>
+                      <p className="text-[11px] text-foreground/70">
+                        System architecture image space
                       </p>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {DOC_TYPES.slice(0, 8).map((doc) => (
-                <Card key={doc.name} className="bg-background/80">
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      <h3 className="text-sm font-semibold">{doc.name}</h3>
-                    </div>
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      {doc.desc}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing preview */}
-      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Pricing
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+        <div className="max-w-2xl">
+          <p className="eyebrow">Grounded by design</p>
+          <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Honest AI, not a{" "}
+            <span className="font-serif font-normal italic text-coral">
+              content vending machine.
+            </span>
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            The generator is built around a simple rule: if your sources do not
+            contain a fact, it must not be invented. You will see where
+            information is missing.
           </p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight">
+        </div>
+
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((feature) => (
+            <Card key={feature.title} className="group p-1">
+              <div className="h-full rounded-[calc(var(--radius)-2px)] p-5">
+                <span className={cn("icon-tile h-10 w-10 rounded-xl", feature.bg, feature.tone)}>
+                  <feature.icon className="h-4 w-4" />
+                </span>
+                <h3 className="mt-5 text-sm font-semibold">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {feature.body}
+                </p>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-white/[0.07] bg-white/[0.015]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="eyebrow">Document types</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em]">
+                One workflow. Eight formats.
+              </h2>
+            </div>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Start with the format your department actually asks for. Your
+              template still decides the final layout.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {DOC_TYPES.map((doc) => (
+              <Link
+                key={doc.name}
+                to="/templates"
+                className="group rounded-2xl border border-white/[0.07] bg-white/[0.018] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/[0.035]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-primary transition-colors group-hover:border-primary/20 group-hover:bg-primary/10">
+                    <FileText className="h-4 w-4" />
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 text-muted-foreground/40 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+                </div>
+                <h3 className="mt-4 text-sm font-semibold">{doc.name}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  {doc.desc}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+        <div className="text-center">
+          <p className="eyebrow">Pricing</p>
+          <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             Start free. Upgrade only when you need more.
           </h2>
-          <p className="mt-3 text-muted-foreground">
+          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
             Student-friendly pricing in INR. No hidden academic add-ons.
           </p>
         </div>
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Free</CardTitle>
-              <CardDescription>
-                <span className="text-3xl font-bold text-foreground">₹0</span>
-                <span className="text-sm"> / month</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2.5 text-sm">
-              {[
-                "1 project workspace",
-                "3 draft generations per month",
-                "1 custom template",
-                "DOCX export",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-muted-foreground" /> {item}
-                </div>
-              ))}
-            </CardContent>
-            <CardContent className="pt-2">
-              <Button asChild variant="outline" className="w-full">
+
+        <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <Card className="p-1">
+            <div className="rounded-[calc(var(--radius)-2px)] p-6">
+              <CardHeader className="p-0">
+                <CardTitle className="text-lg">Free</CardTitle>
+                <CardDescription>
+                  <span className="text-3xl font-semibold tracking-[-0.03em] text-foreground">
+                    ₹0
+                  </span>
+                  <span className="text-sm"> / month</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="mt-6 space-y-2.5 p-0 text-sm">
+                {[
+                  "1 project workspace",
+                  "3 draft generations per month",
+                  "1 custom template",
+                  "DOCX export",
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-muted-foreground">
+                    <Check className="h-4 w-4 text-primary/80" /> {item}
+                  </div>
+                ))}
+              </CardContent>
+              <Button asChild variant="outline" className="mt-7 w-full">
                 <Link to="/signup">Create free account</Link>
               </Button>
-            </CardContent>
+            </div>
           </Card>
-          <Card className="border-primary/40 bg-primary/5 ring-1 ring-primary/30">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Student Pro</CardTitle>
-                <Badge>Most popular</Badge>
-              </div>
-              <CardDescription>
-                <span className="text-3xl font-bold text-foreground">₹149</span>
-                <span className="text-sm"> / 30 days</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2.5 text-sm">
-              {[
-                "Multiple project workspaces",
-                "50 generations per month",
-                "5 custom templates",
-                "DOCX + PDF export",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" /> {item}
+
+          <Card className="relative overflow-hidden border-primary/30 p-1 shadow-glow">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
+            <div className="rounded-[calc(var(--radius)-2px)] bg-primary/[0.035] p-6">
+              <CardHeader className="p-0">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Student Pro</CardTitle>
+                  <Badge>
+                    <Sparkles className="h-3 w-3" /> Most popular
+                  </Badge>
                 </div>
-              ))}
-            </CardContent>
-            <CardContent className="pt-2">
-              <Button asChild className="w-full">
+                <CardDescription>
+                  <span className="text-3xl font-semibold tracking-[-0.03em] text-foreground">
+                    ₹149
+                  </span>
+                  <span className="text-sm"> / 30 days</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="mt-6 space-y-2.5 p-0 text-sm">
+                {[
+                  "Multiple project workspaces",
+                  "50 generations per month",
+                  "5 custom templates",
+                  "DOCX + PDF export",
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-muted-foreground">
+                    <Check className="h-4 w-4 text-primary" /> {item}
+                  </div>
+                ))}
+              </CardContent>
+              <Button asChild className="mt-7 w-full">
                 <Link to="/pricing">See Pro details</Link>
               </Button>
-            </CardContent>
+            </div>
           </Card>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="border-t border-input bg-muted/30">
+      <section className="border-t border-white/[0.07] bg-[hsl(var(--ink)/0.32)]">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <h2 className="text-center text-3xl font-bold tracking-tight">
+          <p className="eyebrow text-center">Questions</p>
+          <h2 className="mt-4 text-center text-3xl font-semibold tracking-[-0.04em]">
             Frequently asked questions
           </h2>
-          <div className="mt-10 space-y-4">
+          <div className="mt-10 space-y-3">
             {[
               [
                 "Is my data used to train AI models?",
@@ -386,32 +558,48 @@ export function LandingPage() {
                 "DOCX export is the primary format. PDF export requires LibreOffice conversion on the server and is available on paid plans when enabled.",
               ],
             ].map(([question, answer]) => (
-              <Card key={question}>
-                <CardContent className="p-5">
-                  <h3 className="text-sm font-semibold">{question}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              <Card key={question} className="p-1">
+                <details className="group rounded-[calc(var(--radius)-2px)] p-5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+                    {question}
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 text-muted-foreground transition-transform duration-300 group-open:rotate-45 group-open:border-primary/25 group-open:text-primary">
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                     {answer}
                   </p>
-                </CardContent>
+                </details>
               </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary px-6 py-12 text-center text-primary-foreground sm:px-12">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_55%)]" />
-          <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <h2 className="relative text-3xl font-bold tracking-tight">
-            Build your next project report with a clear conscience.
+        <div className="relative overflow-hidden rounded-3xl border border-primary/25 bg-primary px-6 py-14 text-center text-primary-foreground sm:px-12 lg:py-16">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,hsl(0_0%_100%/0.22),transparent_45%,hsl(var(--electric)/0.16))]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_120%,hsl(0_0%_0%/0.18),transparent_50%)]" />
+          <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border border-primary-foreground/15" />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full border border-primary-foreground/10" />
+
+          <p className="relative font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/70">
+            Your next submission
+          </p>
+          <h2 className="relative mx-auto mt-4 max-w-2xl text-balance text-3xl font-semibold tracking-[-0.045em] sm:text-4xl lg:text-5xl">
+            Build your project report with a{" "}
+            <span className="font-serif font-normal italic">clear conscience.</span>
           </h2>
-          <p className="relative mx-auto mt-3 max-w-xl text-sm text-primary-foreground/80">
+          <p className="relative mx-auto mt-4 max-w-xl text-sm text-primary-foreground/75">
             Start with the free tier. Keep your sources, outline, and edits in
             one place.
           </p>
-          <Button asChild size="lg" variant="secondary" className="relative mt-7 gap-2">
+          <Button
+            asChild
+            size="lg"
+            variant="secondary"
+            className="relative mt-7 gap-2 border-primary-foreground/10 bg-[hsl(var(--ink))] text-foreground hover:bg-[hsl(var(--ink)/0.9)]"
+          >
             <Link to="/signup">
               Create your first project <ArrowRight className="h-4 w-4" />
             </Link>

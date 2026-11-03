@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { createClient, type Session } from "@supabase/supabase-js";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import {
   createContext,
   useCallback,
@@ -14,16 +14,25 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
-let sb: ReturnType<typeof createClient> | null = null;
+let sbPromise: Promise<SupabaseClient> | null = null;
 
-export function getSupabase() {
-  if (!sb) {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
-    }
-    sb = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * Load Supabase only when auth is actually needed. The public landing page
+ * should not pay for the SDK before its first paint.
+ */
+export async function getSupabase(): Promise<SupabaseClient> {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
   }
-  return sb;
+  if (!sbPromise) {
+    sbPromise = import("@supabase/supabase-js")
+      .then(({ createClient }) => createClient(supabaseUrl, supabaseAnonKey))
+      .catch((error) => {
+        sbPromise = null;
+        throw error;
+      });
+  }
+  return sbPromise;
 }
 
 export type UserProfile = {
@@ -73,7 +82,8 @@ function fallbackProfile(session: Session): UserProfile {
 async function fetchProfile(session: Session): Promise<UserProfile> {
   const fallback = fallbackProfile(session);
   try {
-    const { data, error } = await getSupabase()
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, role, display_name, avatar_url")
       .eq("id", session.user.id)
@@ -109,18 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    let supabase: ReturnType<typeof getSupabase>;
-    try {
-      supabase = getSupabase();
-    } catch (err) {
-      // Missing configuration should not crash the whole app. The login form
-      // will surface the configuration error when the user tries to sign in.
-      console.error(err);
-      setLoading(false);
-      return;
-    }
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    const applySession = async (session: Session | null) => {
+    const applySession = (session: Session | null) => {
       if (!active) return;
       if (!session?.user) {
         setUser(null);
@@ -129,52 +130,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Render the app from the session immediately. The profile row is only
+      // used for display/role data, so waiting for it made every cold load
+      // feel much slower than necessary.
       setToken(session.access_token);
-      const profile = await fetchProfile(session);
-      if (!active) return;
-      setUser(profile);
+      setUser((previous) =>
+        previous?.id === session.user.id ? previous : fallbackProfile(session),
+      );
       setLoading(false);
+
+      void fetchProfile(session).then((profile) => {
+        if (active) setUser(profile);
+      });
     };
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => applySession(data.session))
-      .catch(() => {
+    void getSupabase()
+      .then((supabase) => {
+        if (!active) return;
+        void supabase.auth
+          .getSession()
+          .then(({ data }) => applySession(data.session))
+          .catch(() => {
+            if (active) setLoading(false);
+          });
+
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === "SIGNED_OUT" || !session) {
+            setUser(null);
+            setToken(null);
+            setLoading(false);
+            return;
+          }
+
+          if (
+            event === "SIGNED_IN" ||
+            event === "TOKEN_REFRESHED" ||
+            event === "USER_UPDATED" ||
+            event === "INITIAL_SESSION"
+          ) {
+            // Defer work so Supabase's auth lock is released first.
+            setTimeout(() => {
+              void applySession(session);
+            }, 0);
+          }
+        });
+        subscription = data.subscription;
+      })
+      .catch((err) => {
+        // Missing configuration should not crash the whole app. The login form
+        // will surface the configuration error when the user tries to sign in.
+        console.error(err);
         if (active) setLoading(false);
       });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "SIGNED_OUT" || !session) {
-          setUser(null);
-          setToken(null);
-          setLoading(false);
-          return;
-        }
-
-        if (
-          event === "SIGNED_IN" ||
-          event === "TOKEN_REFRESHED" ||
-          event === "USER_UPDATED" ||
-          event === "INITIAL_SESSION"
-        ) {
-          // Defer work so Supabase's auth lock is released first.
-          setTimeout(() => {
-            void applySession(session);
-          }, 0);
-        }
-      },
-    );
-
     return () => {
       active = false;
-      subscription.subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      const { data, error } = await getSupabase().auth.signInWithPassword({
+      const supabase = await getSupabase();
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -182,8 +200,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // RequireAuth before the auth state listener has run.
       if (!error && data.session) {
         setToken(data.session.access_token);
-        setUser(await fetchProfile(data.session));
+        setUser(fallbackProfile(data.session));
         setLoading(false);
+        void fetchProfile(data.session).then((profile) => setUser(profile));
       }
       return { error: (error as Error | null) ?? null };
     } catch (err) {
@@ -194,7 +213,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = useCallback(
     async (email: string, password: string, displayName?: string) => {
       try {
-        const { data, error } = await getSupabase().auth.signUp({
+        const supabase = await getSupabase();
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: displayName
@@ -206,8 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Email confirmation is disabled on this project: the account is
           // usable immediately, so the caller can go straight to the app.
           setToken(data.session.access_token);
-          setUser(await fetchProfile(data.session));
+          setUser(fallbackProfile(data.session));
           setLoading(false);
+          void fetchProfile(data.session).then((profile) => setUser(profile));
           return { error: null, needsVerification: false };
         }
         return { error: null, needsVerification: true };
@@ -261,7 +282,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
-      await getSupabase().auth.signOut();
+      const supabase = await getSupabase();
+      await supabase.auth.signOut();
     } catch (err) {
       console.error(err);
     } finally {
@@ -272,7 +294,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     try {
-      const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+      const supabase = await getSupabase();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       });
       return { error: (error as Error | null) ?? null };
@@ -283,7 +306,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updatePassword = useCallback(async (password: string) => {
     try {
-      const { error } = await getSupabase().auth.updateUser({ password });
+      const supabase = await getSupabase();
+      const { error } = await supabase.auth.updateUser({ password });
       return { error: (error as Error | null) ?? null };
     } catch (err) {
       return { error: err as Error };

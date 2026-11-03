@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   BadgeCheck,
   CreditCard,
@@ -117,12 +118,11 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Account settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your profile, password, and session.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Account"
+        title="Account settings"
+        description="Manage your profile, password, and session."
+      />
 
       <Card>
         <CardHeader>

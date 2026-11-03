@@ -3,8 +3,23 @@
 import { Toaster, toast, type ExternalToast } from "sonner";
 
 export { toast, type ExternalToast };
+
 export function ToastProvider() {
-  return <Toaster richColors position="bottom-right" />;
+  return (
+    <Toaster
+      theme="dark"
+      richColors
+      position="bottom-right"
+      toastOptions={{
+        style: {
+          background: "hsl(240 18% 8%)",
+          border: "1px solid hsl(0 0% 100% / 0.1)",
+          color: "hsl(60 18% 94%)",
+          borderRadius: "14px",
+        },
+      }}
+    />
+  );
 }
 
 export function useToast() {

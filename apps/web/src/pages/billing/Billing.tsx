@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertCircle,
   Check,
@@ -215,14 +216,11 @@ export function BillingPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Billing &amp; usage</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your 30-day Pro access pass and view usage.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Account"
+        title="Billing & usage"
+        description="Manage your 30-day Pro access pass and view usage."
+      />
 
       {/* Current plan */}
       <Card>

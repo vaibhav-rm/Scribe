@@ -38,17 +38,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const DOCUMENT_TYPES = [
-  { value: "project_synopsis", label: "Project Synopsis" },
-  { value: "project_report", label: "Project Report" },
-  { value: "project_proposal", label: "Project Proposal" },
-  { value: "srs", label: "Software Requirements Specification" },
-  { value: "internship_report", label: "Internship Report" },
-  { value: "research_paper", label: "Research Paper" },
-  { value: "case_study", label: "Case Study" },
-  { value: "seminar_report", label: "Seminar Report" },
-];
+import { PageHeader } from "@/components/layout/PageHeader";
+import { DOCUMENT_TYPES } from "@/lib/document-types";
 
 function stageLabel(progress: number, status: string): string {
   if (status === "completed") return "Completed";
@@ -229,22 +220,21 @@ function GenerationWizard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Generate a document</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pick a project and template, review the outline, then generate.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Drafting studio"
+        title="Generate a document"
+        description="Pick a project and template, review the outline, then generate."
+      />
 
       {limitError && (
-        <div className="flex flex-col gap-3 rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-amber-100/90 sm:flex-row sm:items-center">
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span className="flex-1">{limitError}</span>
           <Button
             asChild
             size="sm"
             variant="outline"
-            className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+            className="border-amber-400/20 text-amber-100 hover:border-amber-400/35 hover:bg-amber-400/10 hover:text-amber-50"
           >
             <Link to="/app/billing">Upgrade plan</Link>
           </Button>
@@ -438,7 +428,7 @@ function GenerationWizard() {
               </div>
             ))}
             {outlineResult.knowledgeWarnings?.length > 0 && (
-              <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+              <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3 text-xs text-amber-100/80">
                 {outlineResult.knowledgeWarnings.length} missing fact(s) noted in
                 sources — visible placeholders will be used instead of invented
                 content.
@@ -614,7 +604,7 @@ function GenerationJobPage({ jobId }: { jobId: string }) {
           )}
 
           {job.status === "completed" && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900 dark:border-green-900/40 dark:bg-green-900/10 dark:text-green-300">
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 text-sm text-primary">
               <div className="flex items-center gap-2 font-medium">
                 <CheckCircle2 className="h-4 w-4" /> Generation complete
               </div>

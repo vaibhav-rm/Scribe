@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertCircle,
   ArrowRight,
@@ -122,18 +123,16 @@ export function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Projects</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Each project is a source workspace. One project can generate many
-            document types.
-          </p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> New project
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Source workspaces"
+        title="Projects"
+        description="Each project is a source workspace. One project can generate many document types."
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New project
+          </Button>
+        }
+      />
 
       {list.length === 0 ? (
         <Card>

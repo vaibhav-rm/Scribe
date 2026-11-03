@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { AlertTriangle, ShieldCheck, FileCheck, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,20 +126,20 @@ export function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Admin dashboard</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            System overview and template moderation.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            Admin: {user?.display_name || user?.email}
-          </span>
-          <Badge variant="destructive">ADMIN</Badge>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-2"
+        eyebrow="Operations"
+        title="Admin dashboard"
+        description="System overview and template moderation."
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Admin: {user?.display_name || user?.email}
+            </span>
+            <Badge variant="destructive">ADMIN</Badge>
+          </div>
+        }
+      />
 
       {/* Overview stats */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">

@@ -43,7 +43,7 @@ export function PricingPage() {
           <Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary">
             <Sparkles className="h-3 w-3" /> Student pricing
           </Badge>
-          <h1 className="mt-4 text-4xl font-extrabold tracking-tight">Pricing</h1>
+          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">Pricing</h1>
           <p className="mt-3 text-muted-foreground">
             Simple, student-friendly pricing in INR. Start free, upgrade when you
             need more projects and generations.
@@ -55,7 +55,7 @@ export function PricingPage() {
             <CardHeader>
               <CardTitle className="text-xl">Free</CardTitle>
               <CardDescription>
-                <span className="text-3xl font-bold text-foreground">₹0</span>
+                <span className="text-3xl font-semibold tracking-[-0.03em] text-foreground">₹0</span>
                 <span className="text-sm"> / month</span>
               </CardDescription>
             </CardHeader>
@@ -81,12 +81,12 @@ export function PricingPage() {
               <span className="text-xs font-semibold uppercase tracking-wider text-primary">
                 Most popular
               </span>
-              <Badge variant="secondary">Student Pro</Badge>
+              <Badge variant="secondary">30-day pass</Badge>
             </div>
             <CardHeader>
               <CardTitle className="text-xl">Student Pro</CardTitle>
               <CardDescription>
-                <span className="text-3xl font-bold text-foreground">₹149</span>
+                <span className="text-3xl font-semibold tracking-[-0.03em] text-foreground">₹149</span>
                 <span className="text-sm"> / 30 days</span>
               </CardDescription>
             </CardHeader>

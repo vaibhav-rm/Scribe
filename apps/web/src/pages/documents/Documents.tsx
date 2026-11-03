@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Dialog,
   DialogContent,
@@ -133,19 +134,18 @@ export function DocumentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Documents</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Every generated draft, with its current version and status.
-          </p>
-        </div>
-        <Button asChild>
-          <Link to="/app/generate">
-            <Sparkles className="mr-2 h-4 w-4" /> Generate a document
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Document library"
+        title="Documents"
+        description="Every generated draft, with its current version and status."
+        actions={
+          <Button asChild>
+            <Link to="/app/generate">
+              <Sparkles className="mr-2 h-4 w-4" /> Generate a document
+            </Link>
+          </Button>
+        }
+      />
 
       {total > 0 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

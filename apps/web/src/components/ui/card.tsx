@@ -9,7 +9,7 @@ export function Card({ className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-input bg-card text-card-foreground shadow-soft",
+        "glass-panel rounded-2xl text-card-foreground transition-colors duration-300",
         className,
       )}
       {...props}
@@ -32,7 +32,7 @@ export function CardTitle({ className, ...props }: CardTitleProps) {
   return (
     <h3
       className={cn(
-        "text-2xl font-semibold leading-none tracking-tight",
+        "text-xl font-semibold leading-none tracking-tight text-foreground",
         className,
       )}
       {...props}
@@ -47,7 +47,7 @@ export function CardDescription({
 }: CardDescriptionProps) {
   return (
     <p
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm leading-relaxed text-muted-foreground", className)}
       {...props}
     />
   );
@@ -55,17 +55,12 @@ export function CardDescription({
 
 export interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {}
 export function CardContent({ className, ...props }: CardContentProps) {
-  return (
-    <div className={cn("p-6 pt-0", className)} {...props} />
-  );
+  return <div className={cn("p-6 pt-0", className)} {...props} />;
 }
 
 export interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
 export function CardFooter({ className, ...props }: CardFooterProps) {
   return (
-    <div
-      className={cn("flex items-center p-6 pt-0", className)}
-      {...props}
-    />
+    <div className={cn("flex items-center p-6 pt-0", className)} {...props} />
   );
 }

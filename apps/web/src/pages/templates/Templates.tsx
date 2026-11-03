@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Dialog,
   DialogContent,
@@ -43,21 +44,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-
-const DOCUMENT_TYPES = [
-  { value: "project_synopsis", label: "Project Synopsis" },
-  { value: "project_report", label: "Project Report" },
-  { value: "project_proposal", label: "Project Proposal" },
-  { value: "srs", label: "Software Requirements Specification" },
-  { value: "internship_report", label: "Internship Report" },
-  { value: "research_paper", label: "Research Paper" },
-  { value: "case_study", label: "Case Study" },
-  { value: "seminar_report", label: "Seminar Report" },
-];
-
-function documentTypeLabel(value: string): string {
-  return DOCUMENT_TYPES.find((t) => t.value === value)?.label ?? value;
-}
+import { DOCUMENT_TYPES, documentTypeLabel } from "@/lib/document-types";
 
 export function TemplatesPage() {
   const { token, user } = useAuth();
@@ -166,20 +153,18 @@ export function TemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-8 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Templates</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Upload and manage your document templates. One template can be reused
-            across projects.
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" /> Upload template
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        className="mb-8"
+        eyebrow="Format library"
+        title="Templates"
+        description="Upload and manage your document templates. One template can be reused across projects."
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" /> Upload template
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Upload template</DialogTitle>
@@ -285,7 +270,8 @@ export function TemplatesPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {templates.length === 0 ? (
         <Card>

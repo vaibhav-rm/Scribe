@@ -21,21 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useApi } from "@/hooks/useApi";
-
-const DOCUMENT_TYPES = [
-  { value: "project_synopsis", label: "Project Synopsis" },
-  { value: "project_report", label: "Project Report" },
-  { value: "project_proposal", label: "Project Proposal" },
-  { value: "srs", label: "SRS" },
-  { value: "internship_report", label: "Internship Report" },
-  { value: "research_paper", label: "Research Paper" },
-  { value: "case_study", label: "Case Study" },
-  { value: "seminar_report", label: "Seminar Report" },
-];
-
-function documentTypeLabel(value: string) {
-  return DOCUMENT_TYPES.find((type) => type.value === value)?.label ?? value;
-}
+import { DOCUMENT_TYPES, documentTypeLabel } from "@/lib/document-types";
 
 export function PublicTemplatesPage() {
   const { isAuthenticated } = useAuth();
@@ -95,7 +81,7 @@ export function PublicTemplatesPage() {
             >
               <ShieldCheck className="h-3 w-3" /> Public library
             </Badge>
-            <h1 className="mt-4 text-4xl font-extrabold tracking-tight">
+            <h1 className="mt-4 text-balance text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
               Template library
             </h1>
             <p className="mt-3 text-muted-foreground">
@@ -126,7 +112,7 @@ export function PublicTemplatesPage() {
           <select
             value={documentType}
             onChange={(event) => setDocumentType(event.target.value)}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-foreground transition-colors hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             aria-label="Document type"
           >
             <option value="">All document types</option>
@@ -139,7 +125,7 @@ export function PublicTemplatesPage() {
           <select
             value={academicYear}
             onChange={(event) => setAcademicYear(event.target.value)}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-foreground transition-colors hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             aria-label="Academic year"
           >
             <option value="">All academic years</option>

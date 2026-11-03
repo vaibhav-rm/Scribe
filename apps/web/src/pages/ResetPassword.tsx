@@ -59,15 +59,23 @@ export function ResetPasswordPage() {
   });
 
   useEffect(() => {
-    try {
-      const { data } = getSupabase().auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY") setRecovery(true);
+    let subscription: { unsubscribe: () => void } | null = null;
+    let active = true;
+    void getSupabase()
+      .then((supabase) => {
+        if (!active) return;
+        const { data } = supabase.auth.onAuthStateChange((event) => {
+          if (event === "PASSWORD_RECOVERY") setRecovery(true);
+        });
+        subscription = data.subscription;
+      })
+      .catch(() => {
+        // Missing Supabase configuration is surfaced when the user submits.
       });
-      return () => data.subscription.unsubscribe();
-    } catch {
-      // Missing Supabase configuration is surfaced when the user submits.
-      return undefined;
-    }
+    return () => {
+      active = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const onRequest = async (data: z.infer<typeof requestSchema>) => {
