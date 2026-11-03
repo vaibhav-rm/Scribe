@@ -750,10 +750,10 @@ export function TemplateDetailPage() {
       </div>
 
       {version ? (
-        <Card>
+        <Card className="paper-surface corner-marks">
           <CardContent className="p-4">
             <textarea
-              className="min-h-[360px] w-full rounded-lg border border-input bg-muted/30 p-4 font-mono text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-90"
+              className="min-h-[360px] w-full rounded-sm border border-input bg-muted/30 p-4 font-mono text-xs leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-90"
               value={specText}
               onChange={(e) => setSpecText(e.target.value)}
               spellCheck={false}

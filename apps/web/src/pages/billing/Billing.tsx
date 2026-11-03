@@ -146,7 +146,7 @@ export function BillingPage() {
             name: user?.display_name || "",
             email: user?.email || "",
           },
-          theme: { color: "#4f46e5" },
+          theme: { color: "#f15a2b" },
           modal: { ondismiss: () => toast.info("Payment cancelled") },
         };
         const rzp = new window.Razorpay(options);
@@ -231,8 +231,8 @@ export function BillingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-6">
-          <div className="bg-muted rounded-xl p-6">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="rounded-md border border-border bg-muted/40 p-5">
+            <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
               Plan
             </div>
             <div className="text-2xl font-bold">
@@ -251,8 +251,8 @@ export function BillingPage() {
               </p>
             )}
           </div>
-          <div className="bg-muted rounded-xl p-6">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="rounded-md border border-border bg-muted/40 p-5">
+            <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
               Projects
             </div>
             <div className="text-2xl font-bold">
@@ -260,8 +260,8 @@ export function BillingPage() {
               {usage?.limits?.maxProjects ?? (plan === "pro" ? 10 : 1)}
             </div>
           </div>
-          <div className="bg-muted rounded-xl p-6">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="rounded-md border border-border bg-muted/40 p-5">
+            <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
               Generations (this month)
             </div>
             <div className="text-2xl font-bold">
@@ -307,7 +307,7 @@ export function BillingPage() {
           </Card>
         )}
         {proPlan && (
-          <Card className="ring-1 ring-primary bg-primary/5 border-primary">
+          <Card className="corner-marks border-primary bg-primary/5 ring-1 ring-primary/40">
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <CardTitle>Student Pro</CardTitle>

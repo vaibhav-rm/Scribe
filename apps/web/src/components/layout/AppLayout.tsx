@@ -78,7 +78,7 @@ function SidebarNav({
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
       <p className="px-3 pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-        Workspace
+        Sheet index
       </p>
       {items.map((item) => {
         const active = navItemActive(location.pathname, item.href);
@@ -92,8 +92,8 @@ function SidebarNav({
             className={cn(
               "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
               active
-                ? "bg-primary/[0.11] text-foreground ring-1 ring-inset ring-primary/15 before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-full before:bg-primary before:shadow-[0_0_10px_hsl(var(--primary)/0.8)]"
-                : "text-muted-foreground hover:bg-white/[0.045] hover:text-foreground",
+                ? "bg-primary/[0.1] text-foreground ring-1 ring-inset ring-primary/20 before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:bg-primary before:shadow-[0_0_10px_hsl(var(--primary)/0.8)]"
+                : "text-muted-foreground hover:bg-foreground/[0.045] hover:text-foreground",
             )}
           >
             <item.icon
@@ -136,11 +136,11 @@ function UserCard() {
   };
 
   return (
-    <div className="border-t border-white/[0.07] p-3">
-      <div className="group flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] p-2.5 transition-colors hover:border-white/10 hover:bg-white/[0.045]">
-        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--electric)))] text-sm font-bold text-primary-foreground shadow-[0_0_0_1px_hsl(0_0%_100%/0.15)]">
+    <div className="border-t border-border p-3">
+      <div className="group flex items-center gap-3 rounded-sm border border-border bg-secondary/30 p-2.5 transition-colors hover:border-primary/30 hover:bg-secondary/50">
+        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[3px] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--coral)))] text-sm font-bold text-primary-foreground shadow-[2px_2px_0_hsl(var(--ink)/0.4)]">
           {initial}
-          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[hsl(var(--card))] bg-primary" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-[1px] border-2 border-[hsl(var(--card))] bg-primary" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{label}</p>
@@ -180,7 +180,7 @@ export function AppLayout() {
 
   const sidebar = (
     <>
-      <div className="flex h-16 items-center justify-between border-b border-white/[0.07] px-4">
+      <div className="flex h-16 items-center justify-between border-b border-border px-4">
         <Brand />
         <Button
           variant="ghost"
@@ -193,10 +193,10 @@ export function AppLayout() {
         </Button>
       </div>
       <div className="px-4 pt-4">
-        <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2">
+        <div className="flex items-center gap-2 border border-border bg-secondary/30 px-3 py-2">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/50" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-[1px] bg-primary/50" />
+            <span className="relative inline-flex h-2 w-2 rounded-[1px] bg-primary" />
           </span>
           <div className="min-w-0">
             <p className="truncate text-[11px] font-medium text-foreground/80">
@@ -215,7 +215,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="hidden w-[264px] flex-col border-r border-white/[0.07] bg-[hsl(var(--ink)/0.55)] backdrop-blur-xl md:flex">
+      <aside className="hidden w-[264px] flex-col border-r border-border bg-[hsl(var(--ink)/0.72)] backdrop-blur-xl md:flex">
         {sidebar}
       </aside>
 
@@ -235,7 +235,7 @@ export function AppLayout() {
         />
         <aside
           className={cn(
-            "absolute inset-y-0 left-0 flex w-[280px] flex-col border-r border-white/[0.08] bg-[hsl(var(--ink)/0.96)] shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out",
+            "absolute inset-y-0 left-0 flex w-[280px] flex-col border-r border-border bg-[hsl(var(--ink)/0.98)] shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
@@ -244,7 +244,7 @@ export function AppLayout() {
       </div>
 
       <div className="app-shell flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-background/55 px-4 backdrop-blur-xl sm:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Button
               variant="ghost"
@@ -265,7 +265,7 @@ export function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.025] px-2.5 py-1 text-[11px] text-muted-foreground sm:flex">
+            <div className="hidden items-center gap-1.5 border border-border bg-secondary/30 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground sm:flex">
               <ShieldCheck className="h-3 w-3 text-primary" />
               Private workspace
             </div>

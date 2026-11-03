@@ -88,6 +88,11 @@ export function PublicTemplatesPage() {
               Browse templates other students have chosen to share publicly.
               Private and unlisted templates are never shown here.
             </p>
+            <div className="mt-6 flex items-center gap-3 border-t border-border pt-4 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground/55">
+              <span>Sheet 02 / archive</span>
+              <span className="h-px flex-1 bg-border" />
+              <span>Public drawings only</span>
+            </div>
           </div>
           <Button asChild className="gap-2">
             <Link to={isAuthenticated ? "/app/templates" : "/signup"}>
@@ -98,7 +103,7 @@ export function PublicTemplatesPage() {
         </div>
 
         {/* Filters */}
-        <div className="mt-8 grid gap-3 rounded-xl border border-input bg-muted/30 p-4 md:grid-cols-[1fr_220px_180px]">
+        <div className="mt-8 grid gap-3 rounded-md border border-border bg-muted/30 p-4 md:grid-cols-[1fr_220px_180px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -112,7 +117,7 @@ export function PublicTemplatesPage() {
           <select
             value={documentType}
             onChange={(event) => setDocumentType(event.target.value)}
-            className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-foreground transition-colors hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+            className="h-11 w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground transition-colors hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             aria-label="Document type"
           >
             <option value="">All document types</option>
@@ -125,7 +130,7 @@ export function PublicTemplatesPage() {
           <select
             value={academicYear}
             onChange={(event) => setAcademicYear(event.target.value)}
-            className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-foreground transition-colors hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+            className="h-11 w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground transition-colors hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             aria-label="Academic year"
           >
             <option value="">All academic years</option>

@@ -10,7 +10,7 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
-      className={cn("shimmer rounded-lg border border-white/[0.04]", className)}
+      className={cn("shimmer rounded-md border border-border/60", className)}
       {...props}
     />
   );

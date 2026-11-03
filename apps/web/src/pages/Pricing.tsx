@@ -48,6 +48,11 @@ export function PricingPage() {
             Simple, student-friendly pricing in INR. Start free, upgrade when you
             need more projects and generations.
           </p>
+          <div className="mt-6 flex items-center gap-3 border-t border-border pt-4 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground/55">
+            <span>Sheet 03 / pricing</span>
+            <span className="h-px flex-1 bg-border" />
+            <span>INR / 30 days</span>
+          </div>
         </div>
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">
@@ -76,8 +81,8 @@ export function PricingPage() {
             </CardFooter>
           </Card>
 
-          <Card className="flex flex-col border-primary/40 bg-primary/5 ring-1 ring-primary/30">
-            <div className="flex items-center justify-between rounded-t-xl bg-primary/10 px-6 py-3">
+          <Card className="corner-marks flex flex-col border-primary/40 bg-primary/5 ring-1 ring-primary/30">
+            <div className="flex items-center justify-between rounded-t-sm bg-primary/10 px-6 py-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-primary">
                 Most popular
               </span>
@@ -110,7 +115,7 @@ export function PricingPage() {
 
         <Separator className="my-14" />
 
-        <div className="rounded-xl border border-input bg-muted/50 p-8 text-center">
+        <div className="rounded-md border border-border bg-muted/40 p-8 text-center">
           <h3 className="text-lg font-semibold">Payments in INR</h3>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
             Student Pro is a one-time 30-day access pass processed through

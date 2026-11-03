@@ -41,6 +41,7 @@ async function register(page: Page, email: string) {
   await page.fill('input[id="display-name"]', "Test Student");
   await page.fill('input[id="email"]', email);
   await page.fill('input[id="password"]', password);
+  await page.fill('input[id="confirm-password"]', password);
   await page.click('button[type="submit"]');
   // Depending on the Supabase project's email-confirmation setting, signup
   // either lands in the app immediately or asks the user to verify first.
@@ -66,7 +67,7 @@ test.describe.serial("Scribe E2E flows", () => {
 
     await page.fill('input[id="title"]', "Smart Irrigation System");
     await page.fill(
-      'input[id="description"]',
+      'textarea[id="description"]',
       "An IoT-based irrigation system for water conservation",
     );
     await page.click('button:has-text("Create project")');
@@ -137,10 +138,9 @@ test.describe.serial("Scribe E2E flows", () => {
 
     await page.click('button:has-text("Generate outline")');
 
-    await expect(page.locator("text=Review outline")).toBeVisible({
-      timeout: 120000,
-    });
-    await expect(page.locator("text=Approve & generate document")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Approve & generate document" }),
+    ).toBeVisible({ timeout: 120000 });
   });
 
   test("7. Generate a document using the AI provider", async ({ page }) => {
@@ -150,11 +150,12 @@ test.describe.serial("Scribe E2E flows", () => {
     await page.click('[aria-label="Project"]');
     await page.click('[role="option"]:has-text("Smart Irrigation System")');
     await page.click('button:has-text("Generate outline")');
-    await expect(page.locator("text=Review outline")).toBeVisible({
-      timeout: 120000,
+    const approveButton = page.getByRole("button", {
+      name: "Approve & generate document",
     });
+    await expect(approveButton).toBeVisible({ timeout: 120000 });
 
-    await page.click('button:has-text("Approve & generate document")');
+    await approveButton.click();
     await page.waitForURL(/\/app\/generations\/[0-9a-f-]+/);
 
     await expect(page.locator("text=Generation complete")).toBeVisible({
@@ -177,9 +178,9 @@ test.describe.serial("Scribe E2E flows", () => {
       "This is the edited abstract for the Smart Irrigation System project.",
     );
 
-    await expect(page.locator("text=All changes saved")).toBeVisible({
-      timeout: 15000,
-    });
+    await expect(
+      page.getByText("All changes saved", { exact: true }),
+    ).toBeVisible({ timeout: 15000 });
     await expect(firstSection).toHaveValue(
       "This is the edited abstract for the Smart Irrigation System project.",
     );
@@ -192,7 +193,7 @@ test.describe.serial("Scribe E2E flows", () => {
     await page.click('button:has-text("History")');
     await expect(page.locator("text=Version history")).toBeVisible();
     await expect(page.locator("text=Manual edit")).toBeVisible();
-    await page.click('button:has-text("Close")');
+    await page.getByRole("button", { name: "Close" }).last().click();
 
     await page.click('button:has-text("DOCX")');
     await expect(page.locator("text=DOCX export ready")).toBeVisible({
@@ -226,7 +227,10 @@ test.describe.serial("Scribe E2E flows", () => {
     await page.goto("/app/billing");
 
     await expect(
-      page.locator("text=/Razorpay|mock mode|Upgrade/i").first(),
-    ).toBeVisible();
+      page.getByRole("heading", { name: "Current access" }),
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByRole("button", { name: /Get Student Pro|Manage access|Upgrade/i }),
+    ).toBeVisible({ timeout: 30_000 });
   });
 });

@@ -109,7 +109,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[linear-gradient(125deg,hsl(var(--primary)/0.09),hsl(var(--card)/0.7)_44%,hsl(var(--electric)/0.045))] p-6 shadow-soft sm:p-8">
+      <section className="corner-marks relative overflow-hidden rounded-xl border border-border bg-[linear-gradient(125deg,hsl(var(--primary)/0.09),hsl(var(--card)/0.8)_44%,hsl(var(--electric)/0.045))] p-6 shadow-soft sm:p-8">
         <div className="pointer-events-none absolute inset-0 grid-field opacity-50" />
         <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-primary/15 blur-[100px]" />
         <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-electric/10 blur-[90px]" />
@@ -121,6 +121,11 @@ export function DashboardPage() {
               <Badge variant={plan === "pro" ? "default" : "outline"}>
                 {planLabel} plan
               </Badge>
+            </div>
+            <div className="mt-5 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground/55">
+              <span>Sheet 01 / workspace</span>
+              <span className="h-px flex-1 bg-border" />
+              <span>Rev. 2026.11</span>
             </div>
             <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
               Welcome back,{" "}
@@ -146,12 +151,12 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-background/45 p-4 backdrop-blur-md">
-            <div className="flex items-center justify-between">
+          <div className="paper-surface paper-sheet w-full max-w-sm rounded-lg p-4">
+            <div className="flex items-center justify-between border-b border-paper-border pb-2">
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 Suggested next step
               </p>
-              <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.8)]" />
+              <span className="h-1.5 w-1.5 rounded-[1px] bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.8)]" />
             </div>
             <div className="mt-3 flex items-start gap-3">
               <span className="icon-tile h-10 w-10 shrink-0 rounded-xl">
@@ -274,7 +279,7 @@ export function DashboardPage() {
           <CardContent>
             {recentProjects.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground">
+                <span className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground">
                   <FolderOpen className="h-6 w-6" />
                 </span>
                 <p className="text-sm font-medium">No projects yet</p>
@@ -294,9 +299,9 @@ export function DashboardPage() {
                   <Link
                     key={project.id}
                     to={`/app/projects/${project.id}`}
-                    className="group flex items-center gap-4 rounded-xl px-2 py-3 transition-colors hover:bg-white/[0.035]"
+                    className="group flex items-center gap-4 rounded-sm px-2 py-3 transition-colors hover:bg-foreground/[0.035]"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-primary/10 text-primary">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-primary/10 text-primary">
                       <FolderOpen className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -361,9 +366,9 @@ export function DashboardPage() {
                     <Link
                       key={document.id}
                       to={`/app/documents/${document.id}`}
-                      className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.04]"
+                      className="group flex items-center gap-3 rounded-sm px-2 py-2 transition-colors hover:bg-foreground/[0.04]"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-muted-foreground group-hover:text-primary">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-border bg-muted/40 text-muted-foreground group-hover:text-primary">
                         <FileText className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -430,7 +435,7 @@ function StatCard({
   }[tone];
 
   return (
-    <Card className="group transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.14]">
+    <Card className="group transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {label}
@@ -446,9 +451,9 @@ function StatCard({
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
           {typeof progress === "number" && (
-            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-[1px] bg-foreground/[0.06]">
               <div
-                className="h-full rounded-full bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.5)] transition-all"
+                className="h-full rounded-[1px] bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.5)] transition-all"
                 style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
               />
             </div>

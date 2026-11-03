@@ -99,17 +99,35 @@ export function DocumentPage() {
   // mark only that section dirty, so autosave never rewrites untouched text.
   const draftContent = useRef<any>(null);
   const dirtySections = useRef<Set<string>>(new Set());
+  // Guards the editor against a slow document load overwriting edits that
+  // happened while the request was in flight (notably StrictMode's double
+  // effect invocation in development).
+  const editRevision = useRef(0);
+  const loadSequence = useRef(0);
   // Bumping this forces a render after a ref-only edit; without it the
   // controlled textareas can show stale text after the first keystroke.
   const [, setContentRevision] = useState(0);
 
   const loadDocument = useCallback(async () => {
     if (!id) return;
+    const requestId = ++loadSequence.current;
+    const revisionAtStart = editRevision.current;
     setLoading(true);
     try {
       const res = await fetchJson(`/api/v1/documents/${id}`);
+      if (requestId !== loadSequence.current) return;
       if (res.ok) {
         const data = await res.json();
+        if (requestId !== loadSequence.current) return;
+        // Do not replace a draft the user has edited while this request was
+        // in flight. A save may already have cleared the dirty flags, so the
+        // edit revision is the reliable signal.
+        if (
+          revisionAtStart !== editRevision.current ||
+          dirtySections.current.size > 0
+        ) {
+          return;
+        }
         setDocument(data.document);
         draftContent.current = JSON.parse(
           JSON.stringify(data.document.content_json ?? { sections: [] }),
@@ -122,7 +140,7 @@ export function DocumentPage() {
     } catch {
       toast.error("Failed to load document");
     } finally {
-      setLoading(false);
+      if (requestId === loadSequence.current) setLoading(false);
     }
   }, [fetchJson, id]);
 
@@ -137,6 +155,7 @@ export function DocumentPage() {
     if (idx >= 0) {
       sections[idx] = { ...sections[idx], content };
       draftContent.current = { ...draftContent.current, sections };
+      editRevision.current += 1;
       dirtySections.current.add(sectionId);
       setContentRevision((revision) => revision + 1);
       setUnsaved(true);
@@ -526,10 +545,15 @@ export function DocumentPage() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="paper-surface corner-marks rounded-xl p-3 sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-paper-border pb-3 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-paper-muted-foreground">
+          <span>Draft sheet / section editor</span>
+          <span>Rev. {document.version_number}</span>
+        </div>
+        <div className="flex flex-col gap-6 lg:flex-row">
         {/* Section navigation */}
         <div className="flex-none lg:sticky lg:top-4 lg:w-1/4 lg:self-start">
-          <Card>
+          <Card className="border-paper-border bg-transparent shadow-none">
             <CardHeader className="p-4">
               <CardTitle className="text-sm font-semibold">Sections</CardTitle>
               <CardDescription className="text-xs">
@@ -557,7 +581,7 @@ export function DocumentPage() {
 
         {/* Editor */}
         <div className="flex-1">
-          <Card>
+          <Card className="border-paper-border bg-transparent shadow-none">
             <CardContent className="p-6">
               <div className="space-y-8">
                 {sections.map((section: any) => (
@@ -598,7 +622,7 @@ export function DocumentPage() {
                         onChange={(e) =>
                           handleSectionChange(section.id, e.target.value)
                         }
-                        className="w-full min-h-[200px] rounded-lg border border-input bg-background p-4 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary transition-colors resize-y"
+                        className="w-full min-h-[200px] resize-y rounded-sm border border-input bg-transparent p-4 font-serif text-[15px] leading-7 text-foreground shadow-[inset_0_1px_0_hsl(0_0%_100%/0.45)] transition-colors placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="Write your section content here…"
                         disabled={regeneratingSection === section.id}
                       />
@@ -716,6 +740,7 @@ export function DocumentPage() {
             </CardFooter>
           </Card>
         </div>
+        </div>
       </div>
 
       {/* Regenerate section dialog */}
@@ -779,7 +804,7 @@ export function DocumentPage() {
         open={!!previewVersion}
         onOpenChange={(open) => !open && setPreviewVersion(null)}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="paper-surface max-w-2xl">
           <DialogHeader>
             <DialogTitle>Version {previewVersion?.number} preview</DialogTitle>
             <DialogDescription>
@@ -803,7 +828,7 @@ export function DocumentPage() {
                     <h3 className="text-sm font-semibold">
                       {section.heading || `Section ${index + 1}`}
                     </h3>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-2 whitespace-pre-wrap font-serif text-[15px] leading-7 text-foreground/80">
                       {section.content}
                     </p>
                   </div>

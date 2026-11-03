@@ -398,7 +398,7 @@ function GenerationWizard() {
       </Card>
 
       {outlineResult && (
-        <Card>
+        <Card className="paper-surface corner-marks">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <ListChecks className="h-4 w-4" /> 2. Review outline
@@ -412,7 +412,7 @@ function GenerationWizard() {
             {(outlineResult.outline?.sections ?? []).map((section: any) => (
               <div
                 key={`${section.id}-${section.order}`}
-                className="flex items-center justify-between rounded-lg border border-input px-3 py-2"
+                className="flex items-center justify-between rounded-sm border border-input bg-transparent px-3 py-2"
               >
                 <div className="flex items-center gap-3">
                   <span className="w-6 text-xs text-muted-foreground">
@@ -428,7 +428,7 @@ function GenerationWizard() {
               </div>
             ))}
             {outlineResult.knowledgeWarnings?.length > 0 && (
-              <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3 text-xs text-amber-100/80">
+              <div className="rounded-sm border border-amber-600/25 bg-amber-500/10 p-3 text-xs text-amber-900">
                 {outlineResult.knowledgeWarnings.length} missing fact(s) noted in
                 sources — visible placeholders will be used instead of invented
                 content.

@@ -5,41 +5,53 @@
 @layer base {
   :root,
   .dark {
-    --background: 240 22% 4%;
-    --foreground: 60 18% 94%;
+    /* Blueprint shell */
+    --background: 203 58% 7%;
+    --foreground: 42 28% 90%;
 
-    --card: 240 18% 7%;
-    --card-foreground: 60 18% 94%;
+    --card: 203 46% 10%;
+    --card-foreground: 42 28% 92%;
 
-    --popover: 240 20% 6%;
-    --popover-foreground: 60 18% 94%;
+    --popover: 203 52% 8%;
+    --popover-foreground: 42 28% 92%;
 
-    /* Acid lime is the signature action colour. */
-    --primary: 76 100% 61%;
-    --primary-foreground: 240 24% 4%;
+    /* Safety orange is the registration and action colour. */
+    --primary: 18 88% 55%;
+    --primary-foreground: 203 62% 7%;
 
-    --secondary: 240 14% 12%;
-    --secondary-foreground: 60 18% 94%;
+    --secondary: 203 36% 15%;
+    --secondary-foreground: 42 28% 92%;
 
-    --muted: 240 14% 10%;
-    --muted-foreground: 240 9% 61%;
+    --muted: 203 34% 12%;
+    --muted-foreground: 200 18% 64%;
 
-    --accent: 240 13% 15%;
-    --accent-foreground: 60 18% 94%;
+    --accent: 203 38% 18%;
+    --accent-foreground: 42 30% 94%;
 
-    --destructive: 4 88% 66%;
-    --destructive-foreground: 240 24% 4%;
+    --destructive: 2 68% 56%;
+    --destructive-foreground: 42 30% 96%;
 
-    --border: 240 12% 17%;
-    --input: 240 12% 17%;
-    --ring: 76 100% 61%;
+    --success: 164 38% 46%;
+    --success-foreground: 203 62% 7%;
 
-    --electric: 188 100% 57%;
-    --coral: 12 100% 66%;
-    --violet: 266 100% 74%;
-    --ink: 240 30% 2%;
+    --border: 203 28% 22%;
+    --input: 203 28% 22%;
+    --ring: 18 88% 55%;
 
-    --radius: 1.15rem;
+    --electric: 192 62% 58%;
+    --coral: 12 76% 60%;
+    --violet: 211 38% 66%;
+    --ink: 203 72% 4%;
+
+    /* Drafting paper */
+    --paper: 43 38% 92%;
+    --paper-foreground: 203 56% 10%;
+    --paper-muted: 42 22% 86%;
+    --paper-muted-foreground: 203 16% 38%;
+    --paper-border: 40 15% 75%;
+    --paper-accent: 203 32% 89%;
+
+    --radius: 0.65rem;
   }
 
   * {
@@ -54,23 +66,23 @@
   body {
     @apply bg-background text-foreground antialiased;
     min-height: 100vh;
-    font-feature-settings: "ss01" 1, "ss02" 1, "cv11" 1;
+    font-feature-settings: "ss01" 1, "cv11" 1;
     text-rendering: optimizeLegibility;
     background-image:
       radial-gradient(
-        ellipse 80% 46% at 50% -18%,
-        hsl(var(--primary) / 0.075),
+        ellipse 70% 40% at 50% -12%,
+        hsl(var(--primary) / 0.08),
         transparent 62%
       ),
       radial-gradient(
-        ellipse 46% 36% at 100% 4%,
-        hsl(var(--electric) / 0.045),
-        transparent 68%
+        ellipse 50% 34% at 100% 2%,
+        hsl(var(--electric) / 0.055),
+        transparent 70%
       ),
       radial-gradient(
-        ellipse 40% 34% at 0% 38%,
-        hsl(var(--violet) / 0.035),
-        transparent 70%
+        ellipse 42% 34% at 0% 44%,
+        hsl(var(--violet) / 0.045),
+        transparent 72%
       );
     background-attachment: fixed;
   }
@@ -83,12 +95,12 @@
   }
 
   ::selection {
-    background: hsl(var(--primary) / 0.28);
+    background: hsl(var(--primary) / 0.3);
     color: hsl(var(--foreground));
   }
 
   :focus-visible {
-    outline: 2px solid hsl(var(--ring) / 0.75);
+    outline: 2px solid hsl(var(--ring) / 0.8);
     outline-offset: 3px;
   }
 
@@ -103,24 +115,67 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    border-radius: 9999px;
+    border-radius: 2px;
     background-color: hsl(var(--border));
   }
 }
 
 @layer components {
+  /*
+   * A paper surface swaps the semantic tokens for ink-on-paper values. Any
+   * component using bg-card, text-foreground, border-border, etc. adapts
+   * automatically when nested inside it.
+   */
+  .paper-surface {
+    --background: var(--paper);
+    --foreground: var(--paper-foreground);
+    --card: var(--paper);
+    --card-foreground: var(--paper-foreground);
+    --popover: var(--paper);
+    --popover-foreground: var(--paper-foreground);
+    --secondary: var(--paper-muted);
+    --secondary-foreground: var(--paper-foreground);
+    --muted: var(--paper-muted);
+    --muted-foreground: var(--paper-muted-foreground);
+    --accent: var(--paper-accent);
+    --accent-foreground: var(--paper-foreground);
+    --border: var(--paper-border);
+    --input: var(--paper-border);
+    --ring: var(--primary);
+
+    color: hsl(var(--paper-foreground));
+    background-color: hsl(var(--paper));
+    background-image:
+      radial-gradient(hsl(203 30% 15% / 0.045) 0.6px, transparent 0.6px),
+      linear-gradient(135deg, hsl(0 0% 100% / 0.42), transparent 46%);
+    background-size: 4px 4px, 100% 100%;
+    border: 1px solid hsl(var(--paper-border));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.7),
+      0 1px 0 hsl(var(--paper-border) / 0.55),
+      10px 12px 0 hsl(var(--ink) / 0.26);
+  }
+
+  .paper-sheet {
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.75),
+      0 1px 0 hsl(var(--paper-border) / 0.65),
+      12px 14px 0 hsl(var(--ink) / 0.34),
+      0 34px 70px -34px hsl(var(--ink) / 0.7);
+  }
+
   .app-shell {
     position: relative;
     isolation: isolate;
     background:
       radial-gradient(
-        ellipse 70% 44% at 52% -10%,
-        hsl(var(--primary) / 0.07),
+        ellipse 68% 42% at 52% -10%,
+        hsl(var(--primary) / 0.075),
         transparent 64%
       ),
       radial-gradient(
         ellipse 36% 30% at 100% 0%,
-        hsl(var(--electric) / 0.04),
+        hsl(var(--electric) / 0.045),
         transparent 70%
       );
   }
@@ -131,56 +186,57 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    opacity: 0.32;
+    opacity: 0.55;
     background-image:
-      linear-gradient(to right, hsl(0 0% 100% / 0.025) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(0 0% 100% / 0.025) 1px, transparent 1px);
-    background-size: 72px 72px;
-    mask-image: radial-gradient(ellipse at 50% 0%, black 8%, transparent 72%);
+      linear-gradient(to right, hsl(var(--electric) / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--electric) / 0.06) 1px, transparent 1px),
+      linear-gradient(to right, hsl(var(--electric) / 0.022) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--electric) / 0.022) 1px, transparent 1px);
+    background-size:
+      96px 96px,
+      96px 96px,
+      24px 24px,
+      24px 24px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 10%, transparent 76%);
   }
 
   .grid-field {
     background-image:
-      linear-gradient(to right, hsl(0 0% 100% / 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(0 0% 100% / 0.045) 1px, transparent 1px);
-    background-size: 52px 52px;
-    mask-image: radial-gradient(ellipse at 50% 35%, black 18%, transparent 76%);
+      linear-gradient(to right, hsl(var(--electric) / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--electric) / 0.07) 1px, transparent 1px),
+      radial-gradient(hsl(var(--primary) / 0.14) 0.8px, transparent 0.8px);
+    background-size:
+      64px 64px,
+      64px 64px,
+      64px 64px;
+    mask-image: radial-gradient(ellipse at 50% 32%, black 10%, transparent 78%);
   }
 
   .glass-panel {
-    border: 1px solid hsl(0 0% 100% / 0.085);
+    border: 1px solid hsl(var(--border));
     background:
-      linear-gradient(
-        145deg,
-        hsl(0 0% 100% / 0.055) 0%,
-        hsl(0 0% 100% / 0.018) 38%,
-        transparent 100%
-      ),
-      hsl(var(--card) / 0.72);
+      linear-gradient(180deg, hsl(0 0% 100% / 0.04), transparent 28%),
+      hsl(var(--card));
     box-shadow:
-      inset 0 1px 0 hsl(0 0% 100% / 0.055),
-      0 24px 70px -42px hsl(0 0% 0% / 0.95);
-    backdrop-filter: blur(18px);
+      inset 0 1px 0 hsl(0 0% 100% / 0.045),
+      0 24px 60px -44px hsl(var(--ink));
   }
 
   .glass-panel-strong {
-    border: 1px solid hsl(0 0% 100% / 0.12);
+    border: 1px solid hsl(var(--border));
     background:
-      linear-gradient(
-        145deg,
-        hsl(0 0% 100% / 0.075) 0%,
-        hsl(0 0% 100% / 0.025) 44%,
-        transparent 100%
-      ),
-      hsl(var(--card) / 0.9);
+      linear-gradient(180deg, hsl(0 0% 100% / 0.05), transparent 30%),
+      hsl(var(--popover));
     box-shadow:
-      inset 0 1px 0 hsl(0 0% 100% / 0.08),
-      0 34px 100px -46px hsl(0 0% 0% / 1);
-    backdrop-filter: blur(24px);
+      inset 0 1px 0 hsl(0 0% 100% / 0.06),
+      0 34px 90px -46px hsl(var(--ink));
   }
 
   .eyebrow {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.64rem;
     font-weight: 600;
     letter-spacing: 0.2em;
@@ -189,13 +245,21 @@
     color: hsl(var(--primary));
   }
 
+  .eyebrow::before {
+    content: "";
+    display: block;
+    width: 20px;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.8;
+  }
+
   .text-gradient {
     background: linear-gradient(
       100deg,
       hsl(var(--foreground)) 0%,
-      hsl(var(--foreground)) 38%,
-      hsl(var(--primary)) 72%,
-      hsl(var(--electric)) 100%
+      hsl(var(--foreground)) 58%,
+      hsl(var(--primary)) 100%
     );
     -webkit-background-clip: text;
     background-clip: text;
@@ -206,8 +270,8 @@
     background: linear-gradient(
       100deg,
       hsl(var(--primary)) 0%,
-      hsl(var(--electric)) 56%,
-      hsl(var(--violet)) 100%
+      hsl(var(--coral)) 58%,
+      hsl(var(--electric)) 100%
     );
     -webkit-background-clip: text;
     background-clip: text;
@@ -219,7 +283,7 @@
     background: linear-gradient(
       90deg,
       transparent,
-      hsl(0 0% 100% / 0.14),
+      hsl(0 0% 100% / 0.16),
       transparent
     );
   }
@@ -228,13 +292,58 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid hsl(0 0% 100% / 0.1);
+    border: 1px solid hsl(var(--primary) / 0.28);
     background:
-      linear-gradient(145deg, hsl(0 0% 100% / 0.08), transparent),
-      hsl(var(--primary) / 0.08);
+      linear-gradient(145deg, hsl(var(--primary) / 0.16), hsl(var(--primary) / 0.04)),
+      hsl(var(--primary) / 0.04);
     color: hsl(var(--primary));
-    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08);
-    clip-path: polygon(18% 0, 100% 0, 100% 82%, 82% 100%, 0 100%, 0 18%);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.1);
+    clip-path: polygon(16% 0, 100% 0, 100% 84%, 84% 100%, 0 100%, 0 16%);
+  }
+
+  .corner-marks {
+    position: relative;
+  }
+
+  .corner-marks::before,
+  .corner-marks::after {
+    content: "";
+    position: absolute;
+    z-index: 20;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    border-color: hsl(var(--primary) / 0.8);
+  }
+
+  .corner-marks::before {
+    top: -1px;
+    left: -1px;
+    border-top: 1px solid;
+    border-left: 1px solid;
+  }
+
+  .corner-marks::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 1px solid;
+    border-bottom: 1px solid;
+  }
+
+  .blueprint-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card) / 0.55);
+    padding: 0.35rem 0.55rem;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
   }
 
   .scene-stage {
@@ -252,20 +361,8 @@
   .scene-card {
     position: absolute;
     overflow: hidden;
-    border: 1px solid hsl(0 0% 100% / 0.12);
-    border-radius: 1.35rem;
-    background:
-      linear-gradient(
-        145deg,
-        hsl(0 0% 100% / 0.09),
-        hsl(0 0% 100% / 0.02) 50%,
-        transparent
-      ),
-      hsl(var(--card) / 0.88);
-    box-shadow:
-      inset 0 1px 0 hsl(0 0% 100% / 0.08),
-      0 40px 90px -46px hsl(0 0% 0% / 1);
-    backdrop-filter: blur(18px);
+    border-radius: 0.55rem;
+    transform-style: preserve-3d;
   }
 
   .scene-card-a {
@@ -296,7 +393,7 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    border: 1px dashed hsl(var(--primary) / 0.22);
+    border: 1px dashed hsl(var(--primary) / 0.28);
     border-radius: 9999px;
     transform: translate(-50%, -50%) rotateX(68deg) rotateZ(-12deg);
   }
@@ -308,9 +405,9 @@
     left: 50%;
     height: 6px;
     width: 6px;
-    border-radius: 9999px;
+    border-radius: 1px;
     background: hsl(var(--primary));
-    box-shadow: 0 0 16px hsl(var(--primary) / 0.9);
+    box-shadow: 0 0 16px hsl(var(--primary) / 0.8);
   }
 
   .scene-floor {
@@ -322,8 +419,8 @@
     transform: translateX(-50%) rotateX(72deg);
     transform-origin: center bottom;
     background-image:
-      linear-gradient(to right, hsl(var(--primary) / 0.12) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--primary) / 0.1) 1px, transparent 1px);
+      linear-gradient(to right, hsl(var(--electric) / 0.16) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--electric) / 0.13) 1px, transparent 1px);
     background-size: 34px 34px;
     mask-image: radial-gradient(ellipse at center, black 0%, transparent 68%);
   }
