@@ -203,10 +203,17 @@ export const PaymentSchema = z.object({
 export type Payment = z.infer<typeof PaymentSchema>;
 
 // Document content structure (domain model)
+export const GeneratedTableSchema = z.object({
+  headers: z.array(z.string()).default([]),
+  rows: z.array(z.array(z.string())).default([]),
+});
+export type GeneratedTable = z.infer<typeof GeneratedTableSchema>;
+
 export const DocumentSectionSchema = z.object({
   id: z.string(),
   heading: z.string(),
   content: z.string(),
+  tables: z.array(GeneratedTableSchema).optional().default([]),
   source_references: z.array(z.string()).optional().default([]),
   warnings: z.array(z.string()).optional().default([]),
 });

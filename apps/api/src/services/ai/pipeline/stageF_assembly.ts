@@ -1,9 +1,27 @@
 import { Packer, Paragraph, TextRun, Document, HeadingLevel } from "docx";
+import {
+  renderTemplateDocument,
+  type GeneratedTable,
+  type RenderMetadata,
+} from "../../docx-template.js";
 
 export interface StageFInput {
   documentTitle: string;
-  sections: Array<{ id: string; heading: string; content: string; warnings?: string[] }>;
+  sections: Array<{
+    id: string;
+    heading: string;
+    content: string;
+    tables?: GeneratedTable[];
+    warnings?: string[];
+  }>;
   templateSpec: Record<string, unknown>;
+  /**
+   * The original uploaded DOCX. When present, it is edited directly so page
+   * size, margins, heading colours, numbered headings, tables, image spaces,
+   * and all other Word formatting are preserved exactly.
+   */
+  templateBuffer?: Buffer;
+  metadata?: RenderMetadata;
   outputFormat: "docx" | "pdf";
 }
 
@@ -23,6 +41,30 @@ export async function assembleDocument(
 ): Promise<{ buffer: Buffer; warnings: string[] }> {
   const warnings: string[] = [];
   const spec = input.templateSpec || {};
+
+  if (input.templateBuffer) {
+    try {
+      const rendered = await renderTemplateDocument({
+        templateBuffer: input.templateBuffer,
+        documentTitle: input.documentTitle,
+        sections: input.sections.map((section) => ({
+          id: section.id,
+          heading: section.heading,
+          content: section.content,
+          tables: section.tables,
+          warnings: section.warnings,
+        })),
+        metadata: input.metadata,
+      });
+      return { buffer: rendered.buffer, warnings: rendered.warnings };
+    } catch (error: any) {
+      warnings.push(
+        `Template-preserving export failed; using a generic layout instead. ${
+          error?.message ?? ""
+        }`.trim(),
+      );
+    }
+  }
 
   const pageSize = (spec.page_size ?? spec.pageSize ?? "A4") as string;
   const margins = (spec.margins ?? { top: 1, bottom: 1, left: 1, right: 1 }) as Margins;

@@ -343,6 +343,7 @@ All core features implemented and tested:
 - [x] Resource ingestion: text, file (PDF/DOCX/TXT/MD), GitHub (bounded README + source ingestion)
 - [x] Template upload + DOCX parsing with specification JSON, review/edit, and new versions
 - [x] AI generation pipeline (Gemini): knowledge extraction, outline, section-by-section generation, validation, DOCX assembly
+- [x] Template-faithful DOCX export: edits the uploaded template directly to keep page size, margins, heading styles, numbered headings, tables, and figure spaces; AI fills the template's content tables
 - [x] Outline review workflow before generation
 - [x] Background generation worker with database-backed queue (`GENERATION_MODE=worker`)
 - [x] Document editor with autosave, per-section regeneration, version history/restore, DOCX/PDF export

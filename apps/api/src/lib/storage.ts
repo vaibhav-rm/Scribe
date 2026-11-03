@@ -112,6 +112,26 @@ export async function getSignedUrl(
 }
 
 /**
+ * Download a private file as a Buffer. Used for template-preserving export,
+ * where the original uploaded DOCX is the formatting source of truth.
+ */
+export async function downloadFile(
+  bucket: StorageBucket,
+  path: string,
+): Promise<Buffer> {
+  const { data, error } = await storageAdmin()
+    .storage.from(bucket)
+    .download(path);
+
+  if (error || !data) {
+    logger.error({ bucket, path, error }, "storage download failed");
+    throw new Error(`Failed to download file: ${error?.message ?? "not found"}`);
+  }
+
+  return Buffer.from(await data.arrayBuffer());
+}
+
+/**
  * Delete a file from a private bucket.
  */
 export async function deleteFile(

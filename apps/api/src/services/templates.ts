@@ -1,5 +1,9 @@
 import fs from "node:fs/promises";
 import mammoth from "mammoth";
+import {
+  extractTemplateLayout,
+  isContentTableLayout,
+} from "./docx-template.js";
 
 export interface TemplateSpecification {
   documentType?: string;
@@ -17,6 +21,12 @@ export interface TemplateSpecification {
   tableOfContents?: boolean;
   requiredSections: string[];
   requiredTables?: number;
+  /** Table shells preserved from the uploaded DOCX and filled by the AI. */
+  tables?: Array<{
+    heading: string | null;
+    headers: string[];
+    rowLabels: string[];
+  }>;
   figureCaptions?: boolean;
   referenceStyle?: string;
   appendices?: boolean;
@@ -77,10 +87,21 @@ export async function parseDocxTemplate(
   // Heuristic: detect headers/footers (page numbers, running text)
   const hasHeaderFooter = /page\s*\d+|header|footer/i.test(rawText);
 
+  // Read the actual Word layout (page size, margins, table shells) so the
+  // specification describes the file that will be used for export.
+  let layout: Awaited<ReturnType<typeof extractTemplateLayout>> | null = null;
+  try {
+    layout = await extractTemplateLayout(buffer);
+  } catch (error: any) {
+    warnings.push(
+      `Could not read Word layout: ${error?.message ?? "unknown error"}`,
+    );
+  }
+
   const specification: TemplateSpecification = {
     documentType: inferDocumentType(rawText, requiredSections),
-    pageSize: "A4", // Default assumption; can be overridden by user
-    margins: { top: 1, bottom: 1, left: 1, right: 1 }, // inches, default
+    pageSize: layout?.pageSize ?? "A4",
+    margins: layout?.margins ?? { top: 1, bottom: 1, left: 1, right: 1 },
     headingHierarchy,
     paragraphSpacing: 6, // pt, default
     lineSpacing: 1.5, // default academic line spacing
@@ -93,6 +114,13 @@ export async function parseDocxTemplate(
     tableOfContents: hasTableOfContents,
     requiredSections,
     requiredTables: tableCount > 0 ? tableCount : undefined,
+    tables: layout?.tables
+      .filter(isContentTableLayout)
+      .map((table) => ({
+        heading: table.heading,
+        headers: table.headers,
+        rowLabels: table.rowLabels,
+      })),
     outputFormats: ["docx", "pdf"],
     notes: placeholders.length
       ? `Detected ${placeholders.length} placeholder(s): ${placeholders.slice(0, 5).join(", ")}${placeholders.length > 5 ? "..." : ""}`

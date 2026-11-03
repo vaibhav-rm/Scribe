@@ -16,7 +16,12 @@ import { generateSection } from "./pipeline/stageD_sections.js";
 import { validateDocument } from "./pipeline/stageE_validation.js";
 import { assembleDocument } from "./pipeline/stageF_assembly.js";
 import { finalValidation } from "./pipeline/stageG_final.js";
-import { uploadFile } from "../../lib/storage.js";
+import { downloadFile, uploadFile } from "../../lib/storage.js";
+import {
+  contentTablesForHeading,
+  extractTemplateLayout,
+  type TemplateLayout,
+} from "../docx-template.js";
 import { randomUUID } from "node:crypto";
 
 export interface RunGenerationInput {
@@ -61,6 +66,15 @@ function buildDocumentTitle(
     .join(" ");
 
   return projectTitle ? `${projectTitle} — ${label}` : label;
+}
+
+function currentAcademicYear(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0 = January
+  // Indian academic year starts around June/July.
+  return month >= 5
+    ? `${year}-${String(year + 1).slice(-2)}`
+    : `${year - 1}-${String(year).slice(-2)}`;
 }
 
 /**
@@ -108,6 +122,50 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
           };
     logger.info({ jobId, stage: "B", sectionCount: templateInterp.requiredSections.length }, "Stage B complete");
 
+    // Load the original DOCX so Stage F can edit it directly instead of
+    // recreating a generic document. The layout also tells Stage D which
+    // tables need generated rows.
+    let templateBuffer: Buffer | undefined;
+    let templateLayout: TemplateLayout | undefined;
+    if (input.templateVersion) {
+      try {
+        templateBuffer = await downloadFile(
+          "templates",
+          input.templateVersion.storage_path,
+        );
+        templateLayout = await extractTemplateLayout(templateBuffer);
+      } catch (err: any) {
+        logger.warn(
+          { err: err?.message, jobId },
+          "template download/parse failed; using generic assembly",
+        );
+      }
+    }
+
+    const ownerProfile = await supabaseAdmin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", ownerId)
+      .single();
+
+    const keywords = Array.from(
+      new Set(
+        [
+          ...(knowledge.technology_stack ?? []),
+          ...knowledge.title
+            .split(/[^A-Za-z0-9+.#-]+/)
+            .filter((word) => word.length > 3),
+        ].filter(Boolean),
+      ),
+    ).slice(0, 7);
+
+    const renderMetadata = {
+      projectTitle: project.data?.title ?? undefined,
+      studentName: ownerProfile.data?.display_name ?? undefined,
+      academicYear: currentAcademicYear(),
+      keywords,
+    };
+
     // Stage C: Outline generation (or use the outline the user already reviewed)
     await updateJobProgress(jobId, { progress: 45 });
     const outline =
@@ -136,6 +194,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
       id: string;
       heading: string;
       content: string;
+      tables?: Array<{ headers: string[]; rows: string[][] }>;
       source_references?: string[];
       warnings?: string[];
     }> = [];
@@ -159,6 +218,14 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
           generatedSections.map((s) => [s.id, s.content]),
         ),
         documentType,
+        templateTables: templateLayout
+          ? contentTablesForHeading(templateLayout, section.heading).map(
+              (table) => ({
+                headers: table.headers,
+                rowLabels: table.rowLabels,
+              }),
+            )
+          : undefined,
       });
       generatedSections.push(sectionResult);
 
@@ -192,6 +259,8 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
       documentTitle,
       sections: generatedSections,
       templateSpec: input.templateVersion?.parsed_specification ?? {},
+      templateBuffer,
+      metadata: renderMetadata,
       outputFormat: "docx",
     });
 
@@ -233,6 +302,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
         content_json: {
           title: documentTitle,
           sections: generatedSections,
+          metadata: renderMetadata,
         },
         // Keep the spec so a later export after editing can rebuild the DOCX
         // with the same formatting instead of reverting to defaults.
@@ -258,6 +328,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
           content_json: {
             title: documentTitle,
             sections: generatedSections,
+            metadata: renderMetadata,
           },
           source: "generation",
         });

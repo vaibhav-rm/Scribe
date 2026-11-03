@@ -10,9 +10,15 @@ import {
 } from "@projectscribe/shared";
 import {
   deleteFile,
+  downloadFile,
   getSignedUrl,
   uploadFile,
 } from "../lib/storage.js";
+import {
+  contentTablesForHeading,
+  extractTemplateLayout,
+  type RenderMetadata,
+} from "../services/docx-template.js";
 import { createConverter, createTempDir } from "../services/conversion.js";
 import {
   enforceLimit,
@@ -282,6 +288,87 @@ router.patch(
   },
 );
 
+function academicYear(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  return month >= 5
+    ? `${year}-${String(year + 1).slice(-2)}`
+    : `${year - 1}-${String(year).slice(-2)}`;
+}
+
+/**
+ * Load the original template DOCX and the title-page metadata for an export.
+ * The generated document keeps the generation job id, which points at the
+ * exact template version used, so later edits still export in that format.
+ */
+async function loadDocumentRenderContext(
+  document: {
+    generation_job_id?: string | null;
+    content_json?: any;
+  },
+  userId: string,
+): Promise<{ templateBuffer?: Buffer; metadata: RenderMetadata }> {
+  const storedMetadata =
+    (document.content_json?.metadata as RenderMetadata | undefined) ?? {};
+  const metadata: RenderMetadata = {
+    ...storedMetadata,
+    academicYear: storedMetadata.academicYear ?? academicYear(),
+  };
+
+  const profile = await supabaseAdmin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .single();
+  metadata.studentName =
+    storedMetadata.studentName ?? profile.data?.display_name ?? undefined;
+
+  if (!document.generation_job_id) return { metadata };
+
+  const { data: job } = await supabaseAdmin
+    .from("generation_jobs")
+    .select("template_version_id, project_id")
+    .eq("id", document.generation_job_id)
+    .single();
+
+  const projectId = (job as any)?.project_id as string | undefined;
+  if (projectId) {
+    const { data: project } = await supabaseAdmin
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .eq("owner_id", userId)
+      .single();
+    if (project?.title) metadata.projectTitle = project.title;
+  }
+
+  const templateVersionId = (job as any)?.template_version_id as
+    | string
+    | null
+    | undefined;
+  if (!templateVersionId) return { metadata };
+
+  const { data: version } = await supabaseAdmin
+    .from("template_versions")
+    .select("storage_path")
+    .eq("id", templateVersionId)
+    .single();
+
+  const storagePath = (version as any)?.storage_path as string | undefined;
+  if (!storagePath) return { metadata };
+
+  try {
+    const templateBuffer = await downloadFile("templates", storagePath);
+    return { templateBuffer, metadata };
+  } catch (error: any) {
+    logger.warn(
+      { error: error?.message, templateVersionId },
+      "template download for export failed; using generic layout",
+    );
+    return { metadata };
+  }
+}
+
 /**
  * Return a cached DOCX path, or rebuild it from the current section content
  * using the template spec that was applied at generation time.
@@ -293,6 +380,7 @@ async function ensureDocxExport(
     content_json: any;
     template_spec?: Record<string, unknown> | null;
     docx_storage_path?: string | null;
+    generation_job_id?: string | null;
   },
   userId: string,
 ): Promise<{ path: string; generated: boolean }> {
@@ -305,15 +393,19 @@ async function ensureDocxExport(
   );
   const spec = document.template_spec ?? {};
   const sections = document.content_json?.sections ?? [];
+  const renderContext = await loadDocumentRenderContext(document, userId);
   const result = await assembleDocument({
     documentTitle: document.title,
     sections: sections.map((section: any) => ({
       id: section.id,
       heading: section.heading,
       content: section.content,
+      tables: section.tables,
       warnings: section.warnings,
     })),
     templateSpec: spec,
+    templateBuffer: renderContext.templateBuffer,
+    metadata: renderContext.metadata,
     outputFormat: "docx",
   });
 
@@ -530,14 +622,22 @@ router.get(
  * that produced the document. Used to keep regenerated sections consistent
  * with the original document.
  */
-async function resolveJobContext(document: {
-  generation_job_id?: string | null;
-}): Promise<{
+async function resolveJobContext(
+  document: {
+    generation_job_id?: string | null;
+  },
+  sectionHeading: string,
+): Promise<{
   documentType: string;
   templateRequirements: Record<string, unknown>;
+  templateTables: Array<{ headers: string[]; rowLabels: string[] }>;
 }> {
   if (!document.generation_job_id) {
-    return { documentType: "academic document", templateRequirements: {} };
+    return {
+      documentType: "academic document",
+      templateRequirements: {},
+      templateTables: [],
+    };
   }
 
   const { data: job } = await supabaseAdmin
@@ -553,17 +653,37 @@ async function resolveJobContext(document: {
     | undefined;
 
   let templateRequirements: Record<string, unknown> = {};
+  let templateTables: Array<{ headers: string[]; rowLabels: string[] }> = [];
   if (templateVersionId) {
     const { data: version } = await supabaseAdmin
       .from("template_versions")
-      .select("parsed_specification")
+      .select("parsed_specification, storage_path")
       .eq("id", templateVersionId)
       .single();
     templateRequirements =
       ((version as any)?.parsed_specification as Record<string, unknown>) ?? {};
+
+    const storagePath = (version as any)?.storage_path as string | undefined;
+    if (storagePath) {
+      try {
+        const buffer = await downloadFile("templates", storagePath);
+        const layout = await extractTemplateLayout(buffer);
+        templateTables = contentTablesForHeading(layout, sectionHeading).map(
+          (table) => ({
+            headers: table.headers,
+            rowLabels: table.rowLabels,
+          }),
+        );
+      } catch (error: any) {
+        logger.warn(
+          { error: error?.message, templateVersionId },
+          "template layout load for section regeneration failed",
+        );
+      }
+    }
   }
 
-  return { documentType, templateRequirements };
+  return { documentType, templateRequirements, templateTables };
 }
 
 /**
@@ -638,7 +758,10 @@ router.post(
       ? `\n\nAdditional user instructions for this regeneration:\n${req.validated!.body.instructions}`
       : "";
 
-    const jobContext = await resolveJobContext(document as any);
+    const jobContext = await resolveJobContext(
+      document as any,
+      contentJson.sections[sectionIndex].heading,
+    );
 
     const generated = await generateSection({
       sectionId,
@@ -654,6 +777,7 @@ router.post(
       })),
       existingApprovedSections,
       documentType: jobContext.documentType,
+      templateTables: jobContext.templateTables,
     });
 
     // generateSection degrades to a visible placeholder on provider errors.
@@ -671,6 +795,10 @@ router.post(
     contentJson.sections[sectionIndex] = {
       ...contentJson.sections[sectionIndex],
       content: generated.content,
+      tables:
+        generated.tables && generated.tables.length > 0
+          ? generated.tables
+          : contentJson.sections[sectionIndex].tables ?? [],
       source_references:
         generated.source_references ??
         contentJson.sections[sectionIndex].source_references ??

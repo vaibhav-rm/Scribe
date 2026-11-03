@@ -56,12 +56,25 @@ export const DocumentOutlineSchema = z.object({
 export type DocumentOutline = z.infer<typeof DocumentOutlineSchema>;
 
 /**
+ * A table the AI fills to match a table already present in the uploaded
+ * template. Headers come from the template; rows must only contain facts from
+ * the project sources.
+ */
+export const GeneratedTableSchema = z.object({
+  headers: z.array(z.string()).default([]),
+  rows: z.array(z.array(z.string())).default([]),
+});
+
+export type GeneratedTable = z.infer<typeof GeneratedTableSchema>;
+
+/**
  * Stage D: Individual section generation output schema.
  */
 export const DocumentSectionSchema = z.object({
   id: z.string(),
   heading: z.string(),
   content: z.string(),
+  tables: z.array(GeneratedTableSchema).optional().default([]),
   source_references: z.array(z.string()).optional().default([]),
   warnings: z.array(z.string()).optional().default([]),
   word_count: z.number().int().nonnegative().optional(),

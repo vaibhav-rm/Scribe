@@ -13,6 +13,14 @@ export interface StageDInput {
   }>;
   existingApprovedSections: Record<string, string>; // sectionId -> content
   documentType: string;
+  /**
+   * Tables that already exist under this heading in the uploaded template.
+   * The model must fill these instead of inventing a different table layout.
+   */
+  templateTables?: Array<{
+    headers: string[];
+    rowLabels: string[];
+  }>;
 }
 
 /**
@@ -34,6 +42,19 @@ export async function generateSection(
     .map(([id, content]) => `[${id}]\n${content.slice(0, 1000)}`)
     .join("\n\n---\n\n") || "(no prior sections)";
 
+  const templateTables = input.templateTables ?? [];
+  const tableContext =
+    templateTables.length > 0
+      ? `Template tables required for this section:
+${JSON.stringify(templateTables, null, 2)}
+
+Fill these exact tables. Return a "tables" array with one object per table,
+copying the headers verbatim. Each "rows" entry must be an array of cell
+strings in the same column order. Use only facts from the project knowledge
+and resources; use "[INFORMATION NOT AVAILABLE]" for unknown cells. Do not
+repeat table rows in "content".`
+      : "This section has no template table. Return an empty tables array.";
+
   const systemPrompt = `You are an academic document assistant writing a single section of a student project document in India.
 
 Rules:
@@ -48,6 +69,8 @@ Section to write: ${input.sectionHeading} (id: ${input.sectionId})
 
 Template requirements:
 ${JSON.stringify(input.templateRequirements, null, 2)}
+
+${tableContext}
 
 Relevant project knowledge:
 ${JSON.stringify(input.projectKnowledge, null, 2)}
@@ -66,7 +89,7 @@ Write the section content.`;
       systemPrompt,
       userPrompt,
       schema: DocumentSectionSchema,
-      maxOutputTokens: 1500,
+      maxOutputTokens: templateTables.length > 0 ? 3000 : 1500,
       temperature: 0.4,
     });
   } catch (err: any) {
@@ -76,6 +99,7 @@ Write the section content.`;
       heading: input.sectionHeading,
       content: "[SECTION GENERATION FAILED - AI provider error. Please regenerate or write manually.]",
       warnings: ["AI provider error"],
+      tables: [],
       source_references: [],
     };
   }
@@ -88,6 +112,7 @@ Write the section content.`;
       heading: input.sectionHeading,
       content: "[SECTION GENERATION FAILED - output did not match expected schema. Please regenerate or write manually.]",
       warnings: ["AI output validation failed"],
+      tables: [],
       source_references: [],
     };
   }

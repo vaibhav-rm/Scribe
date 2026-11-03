@@ -623,6 +623,57 @@ export function DocumentPage() {
                       words
                     </p>
 
+                    {Array.isArray(section.tables) &&
+                    section.tables.length > 0 ? (
+                      <div className="space-y-3">
+                        {section.tables.map((table: any, tableIndex: number) => (
+                          <div
+                            key={tableIndex}
+                            className="overflow-x-auto rounded-lg border border-input"
+                          >
+                            <table className="w-full border-collapse text-left text-xs">
+                              <thead className="bg-muted/60">
+                                <tr>
+                                  {(table.headers ?? []).map(
+                                    (header: string, index: number) => (
+                                      <th
+                                        key={index}
+                                        className="border-b border-input px-3 py-2 font-semibold"
+                                      >
+                                        {header}
+                                      </th>
+                                    ),
+                                  )}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(table.rows ?? []).map(
+                                  (row: string[], rowIndex: number) => (
+                                    <tr key={rowIndex}>
+                                      {(row ?? []).map(
+                                        (cell: string, cellIndex: number) => (
+                                          <td
+                                            key={cellIndex}
+                                            className="border-b border-input/60 px-3 py-2 align-top"
+                                          >
+                                            {cell}
+                                          </td>
+                                        ),
+                                      )}
+                                    </tr>
+                                  ),
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))}
+                        <p className="text-[11px] text-muted-foreground">
+                          Generated from the uploaded template&apos;s table
+                          layout. Regenerate this section to refresh its rows.
+                        </p>
+                      </div>
+                    ) : null}
+
                     {section.warnings?.length ? (
                       <div className="flex items-start gap-1 text-xs text-destructive">
                         <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
