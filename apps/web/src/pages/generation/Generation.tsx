@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import {
   Select,
@@ -111,6 +112,9 @@ function GenerationWizard() {
   const [documentType, setDocumentType] = React.useState("project_synopsis");
   const [outlineResult, setOutlineResult] = React.useState<any>(null);
   const [limitError, setLimitError] = React.useState("");
+  const [placeholderValues, setPlaceholderValues] = React.useState<
+    Record<string, string>
+  >({});
 
   const projectsQ = useQuery({
     queryKey: ["projects"],
@@ -142,6 +146,23 @@ function GenerationWizard() {
     enabled: !!token && !!templateId,
   });
 
+  const templateVersionId =
+    templateDetailQ.data?.template?.id === templateId
+      ? (templateDetailQ.data?.version?.id as string | undefined)
+      : undefined;
+
+  const placeholdersQ = useQuery({
+    queryKey: ["template-placeholders", templateVersionId],
+    queryFn: async () => {
+      const res = await fetchJson(
+        `/api/v1/templates/${templateId}/placeholders?version_id=${templateVersionId}`,
+      );
+      if (!res.ok) throw new Error("Failed to load template placeholders");
+      return res.json();
+    },
+    enabled: !!token && !!templateId && !!templateVersionId,
+  });
+
   const resourcesQ = useQuery({
     queryKey: ["resources", projectId],
     queryFn: async () => {
@@ -158,7 +179,7 @@ function GenerationWizard() {
         method: "POST",
         body: JSON.stringify({
           project_id: projectId,
-          template_version_id: templateDetailQ.data?.version?.id ?? null,
+          template_version_id: templateVersionId ?? null,
           document_type: documentType,
         }),
       });
@@ -187,9 +208,14 @@ function GenerationWizard() {
         method: "POST",
         body: JSON.stringify({
           project_id: projectId,
-          template_version_id: templateDetailQ.data?.version?.id ?? null,
+          template_version_id: templateVersionId ?? null,
           document_type: documentType,
           outline_id: outlineResult?.outlineId ?? null,
+          placeholder_values: Object.fromEntries(
+            Object.entries(placeholderValues).filter(([, value]) =>
+              value.trim(),
+            ),
+          ),
         }),
       });
       if (!res.ok) {
@@ -323,6 +349,7 @@ function GenerationWizard() {
               onValueChange={(value) => {
                 setTemplateId(value === "none" ? "" : value);
                 setOutlineResult(null);
+                setPlaceholderValues({});
               }}
             >
               <SelectTrigger aria-label="Template">
@@ -344,6 +371,9 @@ function GenerationWizard() {
                 Using version {selectedTemplate.version.version_number}
                 {selectedTemplate.version.parsed_specification?.requiredSections?.length
                   ? ` · ${selectedTemplate.version.parsed_specification.requiredSections.length} detected sections`
+                  : ""}
+                {placeholdersQ.data?.imagePlaceholders?.length
+                  ? ` · ${placeholdersQ.data.imagePlaceholders.length} figure space(s) will be illustrated`
                   : ""}
               </p>
             )}
@@ -435,6 +465,34 @@ function GenerationWizard() {
               </div>
             )}
           </CardContent>
+          {(placeholdersQ.data?.fields ?? []).length > 0 && (
+            <CardContent className="border-t border-input pt-4">
+              <div className="mb-3">
+                <p className="text-sm font-medium">Optional title-page details</p>
+                <p className="text-xs text-muted-foreground">
+                  Fill in any values you want in the template. Blank fields keep
+                  the visible placeholder or use your project/profile defaults.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(placeholdersQ.data.fields as any[]).map((field) => (
+                  <Input
+                    key={field.key}
+                    id={`placeholder-${field.key}`}
+                    label={field.label}
+                    placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                    value={placeholderValues[field.key] ?? ""}
+                    onChange={(event) =>
+                      setPlaceholderValues((current) => ({
+                        ...current,
+                        [field.key]: event.target.value,
+                      }))
+                    }
+                  />
+                ))}
+              </div>
+            </CardContent>
+          )}
           <CardFooter className="justify-end">
             <div className="flex flex-wrap gap-2 sm:ml-auto">
             <Button

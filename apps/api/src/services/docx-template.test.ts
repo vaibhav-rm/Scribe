@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import {
   contentTablesForHeading,
+  extractPlaceholderFields,
   extractTemplateLayout,
   renderTemplateDocument,
   type RenderSection,
@@ -10,6 +11,13 @@ import {
 
 const W_NS =
   "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const A_NS =
+  "http://schemas.openxmlformats.org/drawingml/2006/main";
+
+const ONE_PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
 
 function paragraph(style: string, text: string): string {
   return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
@@ -278,6 +286,19 @@ describe("template-preserving DOCX export", () => {
       "Implementation Plan (Phase-wise)",
     );
     expect(layout.tables).toHaveLength(4);
+    expect(layout.imagePlaceholders).toHaveLength(1);
+    expect(layout.imagePlaceholders[0].sectionHeading).toBe(
+      "System Architecture Overview",
+    );
+    expect(layout.imagePlaceholders[0].caption).toBe(
+      "Figure 1: Proposed System Architecture",
+    );
+
+    const fields = await extractPlaceholderFields(await buildTemplate());
+    expect(fields.map((field) => field.key)).toEqual(
+      expect.arrayContaining(["project_title", "student_name", "usn"]),
+    );
+    expect(fields.every((field) => field.label.length > 0)).toBe(true);
 
     const gapTables = contentTablesForHeading(layout, "Research Gap Summary");
     expect(gapTables).toHaveLength(1);
@@ -372,5 +393,52 @@ describe("template-preserving DOCX export", () => {
     );
     expect(abstractHeading).toBeDefined();
     expect(styleOf(abstractHeading!)).toBe("Heading1");
+  });
+
+  it("embeds a generated figure and registers the DOCX media parts", async () => {
+    const result = await renderTemplateDocument({
+      templateBuffer: await buildTemplate(),
+      documentTitle: "Test Synopsis",
+      sections: validSections,
+      metadata: { projectTitle: "Wearable BCI" },
+      images: [
+        {
+          buffer: ONE_PIXEL_PNG,
+          mimeType: "image/png",
+          caption: "Figure 1: Generated system architecture",
+          altText: "Generated system architecture diagram",
+        },
+      ],
+    });
+
+    const zip = await JSZip.loadAsync(result.buffer);
+    const xml = await zip.file("word/document.xml")!.async("string");
+    const document = parseDocument(xml);
+    const fullText = textOf(document.documentElement);
+
+    // The placeholder box is replaced by a real inline drawing.
+    expect(
+      Array.from(document.getElementsByTagNameNS(A_NS, "blip")),
+    ).toHaveLength(1);
+    expect(fullText).toContain("Figure 1: Generated system architecture");
+    expect(fullText).not.toContain("Insert system architecture diagram");
+    expect(
+      all(document, "tbl").filter((table) =>
+        textOf(table).includes("Insert system architecture diagram"),
+      ),
+    ).toHaveLength(0);
+
+    // The image bytes, relationship, and content type are added to the ZIP.
+    expect(zip.file("word/media/image1.png")).not.toBeNull();
+    const relationships = await zip
+      .file("word/_rels/document.xml.rels")!
+      .async("string");
+    expect(relationships).toContain("media/image1.png");
+    expect(relationships).toContain("relationships/image");
+    const contentTypes = await zip
+      .file("[Content_Types].xml")!
+      .async("string");
+    expect(contentTypes).toContain('Extension="png"');
+    expect(contentTypes).toContain("image/png");
   });
 });

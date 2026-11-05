@@ -12,10 +12,15 @@ import { auditLog } from "../services/audit.js";
 import {
   storageAdmin,
   uploadFile,
+  downloadFile,
   ensureBucket,
   type StorageBucket,
 } from "../lib/storage.js";
 import { parseDocxTemplate } from "../services/templates.js";
+import {
+  extractPlaceholderFields,
+  extractTemplateLayout,
+} from "../services/docx-template.js";
 import multer from "multer";
 import { randomUUID } from "node:crypto";
 import { logger } from "../lib/logger.js";
@@ -402,6 +407,112 @@ router.get(
     }
 
     res.json({ template, version });
+  },
+);
+
+// GET /api/v1/templates/:id/placeholders
+// Returns the title-page / personal fields a template expects so the
+// generation wizard can ask for them before starting the expensive run.
+router.get(
+  "/templates/:id/placeholders",
+  authenticate,
+  validate(GetTemplateSchema),
+  async (
+    req: AuthRequest & {
+      query: Record<string, any>;
+      validated?: { params: { id: string } };
+    },
+    res: Response,
+  ) => {
+    const userId = req.user!.id;
+    const { id } = req.validated!.params;
+
+    const { data: template, error } = await supabaseAdmin
+      .from("templates")
+      .select("id, owner_id, visibility, verification_status, current_version_id")
+      .eq("id", id)
+      .single();
+
+    if (error || !template) {
+      res.status(404).json({ error: "not_found", message: "Template not found" });
+      return;
+    }
+
+    const isOwner = (template as any).owner_id === userId;
+    const isAdmin = (req.user!.role ?? "user") === "admin";
+    if (!isOwner && !isAdmin) {
+      if ((template as any).visibility === "private") {
+        res.status(403).json({ error: "forbidden", message: "Private template" });
+        return;
+      }
+      if (
+        (template as any).visibility === "public" &&
+        (template as any).verification_status !== "verified"
+      ) {
+        res.status(403).json({
+          error: "forbidden",
+          message: "This public template is still being reviewed",
+        });
+        return;
+      }
+    }
+
+    const requestedVersionId =
+      typeof req.query.version_id === "string" ? req.query.version_id : null;
+    const versionId = requestedVersionId || (template as any).current_version_id;
+    if (!versionId) {
+      res.json({ versionId: null, fields: [], imagePlaceholders: [] });
+      return;
+    }
+
+    const { data: version, error: versionError } = await supabaseAdmin
+      .from("template_versions")
+      .select("id, storage_path, parsed_specification")
+      .eq("id", versionId)
+      .eq("template_id", id)
+      .single();
+
+    if (versionError || !version) {
+      res.status(404).json({
+        error: "not_found",
+        message: "Template version not found",
+      });
+      return;
+    }
+
+    const specification =
+      ((version as any).parsed_specification ?? {}) as Record<string, any>;
+    let fields = Array.isArray(specification.placeholderFields)
+      ? specification.placeholderFields
+      : [];
+    let imagePlaceholders = Array.isArray(specification.imagePlaceholders)
+      ? specification.imagePlaceholders
+      : [];
+
+    // Older template versions were parsed before placeholder discovery was
+    // added. Read the DOCX directly so existing templates still work.
+    const storagePath = (version as any).storage_path as string | undefined;
+    if (fields.length === 0 && storagePath?.toLowerCase().endsWith(".docx")) {
+      try {
+        const buffer = await downloadFile("templates", storagePath);
+        fields = await extractPlaceholderFields(buffer);
+        if (imagePlaceholders.length === 0) {
+          imagePlaceholders = (await extractTemplateLayout(buffer))
+            .imagePlaceholders;
+        }
+      } catch (extractError: any) {
+        logger.warn(
+          { error: extractError?.message, templateId: id, versionId },
+          "placeholder discovery from DOCX failed",
+        );
+      }
+    }
+
+    res.json({
+      versionId,
+      fields,
+      imagePlaceholders,
+    });
   },
 );
 

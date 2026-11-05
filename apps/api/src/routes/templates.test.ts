@@ -87,6 +87,21 @@ describe("Template routes", () => {
     expect(res.status).toBe(404);
   });
 
+  it("GET /api/v1/templates/:id/placeholders validates and scopes the template", async () => {
+    const invalid = await request(app)
+      .get("/api/v1/templates/not-a-uuid/placeholders")
+      .set("Authorization", `Bearer ${token}`);
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error).toBe("validation_failed");
+
+    const missing = await request(app)
+      .get(
+        "/api/v1/templates/00000000-0000-0000-0000-000000000000/placeholders",
+      )
+      .set("Authorization", `Bearer ${token}`);
+    expect(missing.status).toBe(404);
+  });
+
   it("POST /api/v1/templates rejects missing title", async () => {
     const res = await request(app)
       .post("/api/v1/templates")

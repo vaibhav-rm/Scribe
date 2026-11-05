@@ -4,6 +4,13 @@ import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 const W_NS =
   "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const XML_NS = "http://www.w3.org/XML/1998/namespace";
+const XMLNS_NS = "http://www.w3.org/2000/xmlns/";
+const WP_NS =
+  "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
+const A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main";
+const PIC_NS = "http://schemas.openxmlformats.org/drawingml/2006/picture";
+const R_NS =
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
 export interface TemplateHeading {
   text: string;
@@ -25,11 +32,30 @@ export interface TemplateTableLayout {
   columnCount: number;
 }
 
+export interface TemplateImagePlaceholder {
+  /** Position in the template's render order. */
+  index: number;
+  caption: string;
+  /** The original template instruction, useful as an image prompt. */
+  prompt: string;
+  sectionHeading: string | null;
+}
+
+export interface TemplatePlaceholderField {
+  key: string;
+  label: string;
+  /** Exact bracket token in the template, when there is one. */
+  placeholder: string;
+  kind: "table-cell" | "inline";
+}
+
 export interface TemplateLayout {
   headings: TemplateHeading[];
   tables: TemplateTableLayout[];
   pageSize: string;
   margins: TemplateMargins;
+  imagePlaceholders: TemplateImagePlaceholder[];
+  placeholderFields: TemplatePlaceholderField[];
 }
 
 export interface GeneratedTable {
@@ -45,12 +71,46 @@ export interface RenderSection {
   warnings?: string[];
 }
 
+export interface GeneratedImageAsset {
+  index: number;
+  storagePath: string;
+  mimeType: string;
+  caption?: string;
+  altText?: string;
+}
+
 export interface RenderMetadata {
   projectTitle?: string;
   studentName?: string;
   usn?: string;
   academicYear?: string;
   keywords?: string[];
+  semester?: string;
+  semesterSection?: string;
+  section?: string;
+  labBatch?: string;
+  dateOfSubmission?: string;
+  guideName?: string;
+  guideDesignation?: string;
+  nameUsn?: string;
+  guideNameDesignation?: string;
+  department?: string;
+  college?: string;
+  course?: string;
+  subject?: string;
+  faculty?: string;
+  /** Values the user supplied for template placeholder fields. */
+  placeholderValues?: Record<string, string>;
+  /** Images persisted for an edited document's next export. */
+  generatedImages?: GeneratedImageAsset[];
+  imageWarnings?: string[];
+}
+
+export interface RenderImage {
+  buffer: Buffer;
+  mimeType: string;
+  caption?: string;
+  altText?: string;
 }
 
 export interface RenderTemplateInput {
@@ -58,6 +118,11 @@ export interface RenderTemplateInput {
   documentTitle: string;
   sections: RenderSection[];
   metadata?: RenderMetadata;
+  /**
+   * Generated figures in the same order as `TemplateLayout.imagePlaceholders`.
+   * A null entry keeps the visible template placeholder for that figure.
+   */
+  images?: Array<RenderImage | null>;
 }
 
 export interface RenderTemplateResult {
@@ -71,11 +136,22 @@ interface HeadingInfo extends TemplateHeading {
   section?: RenderSection;
 }
 
+interface MediaState {
+  nextImageIndex: number;
+  nextRelationshipId: number;
+  nextDrawingId: number;
+  files: Array<{ path: string; buffer: Buffer; mimeType: string }>;
+  relationships: Array<{ id: string; target: string }>;
+}
+
 interface RenderContext {
   doc: Document;
   bodyParagraph: Element;
   listParagraph: Element | null;
   metadata: RenderMetadata;
+  images: Array<RenderImage | null>;
+  imageCursor: number;
+  media: MediaState;
 }
 
 function localName(node: Node): string {
@@ -177,6 +253,262 @@ function similarity(a: string, b: string): number {
   let intersection = 0;
   for (const word of aw) if (bw.has(word)) intersection++;
   return intersection / new Set([...aw, ...bw]).size;
+}
+
+function normalizeFieldLabel(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function fieldKeyForLabel(value: string): string {
+  const normalized = normalizeFieldLabel(value);
+
+  if (/project\s*(title|name)|title\s*of\s*(the\s*)?project/.test(normalized)) {
+    return "project_title";
+  }
+  if (/name\s*(?:&|and)?\s*usn/.test(normalized)) {
+    return "name_usn";
+  }
+  if (/student\s*name/.test(normalized)) {
+    return "student_name";
+  }
+  if (/semester/.test(normalized) && /section/.test(normalized)) {
+    return "semester_section";
+  }
+  if (/dr\.?\s*\/?\s*prof|guide.*designation|designation.*guide/.test(normalized)) {
+    return "guide_name_designation";
+  }
+  if (/\busn\b|reg(?:istration)?\s*(?:no|number)/.test(normalized)) {
+    return "usn";
+  }
+  if (/semester/.test(normalized)) return "semester";
+  if (/section/.test(normalized)) return "section";
+  if (/lab\s*batch/.test(normalized)) return "lab_batch";
+  if (/date/.test(normalized)) return "date_of_submission";
+  if (/guide\s*(?:name)?/.test(normalized)) return "guide_name";
+  if (/designation/.test(normalized)) return "guide_designation";
+  if (/academic\s*year/.test(normalized)) return "academic_year";
+  if (/department/.test(normalized)) return "department";
+  if (/college|institution/.test(normalized)) return "college";
+  if (/course/.test(normalized)) return "course";
+  if (/subject/.test(normalized)) return "subject";
+  if (/faculty/.test(normalized)) return "faculty";
+
+  return (
+    normalized.replace(/\s+/g, "_").slice(0, 60) || "placeholder"
+  );
+}
+
+function isContentPlaceholder(value: string): boolean {
+  const normalized = normalizeFieldLabel(value);
+  if (!normalized) return true;
+  if (normalized.length > 80) return true;
+  return /insert|write|diagram|figure|table|author|what the|describe|guideline|todo|tbd|placeholder|information not available|not available|task|activity|activities|duration|phase|reference|key contribution|limitation|research gap|e g|example/.test(
+    normalized,
+  );
+}
+
+function isPersonalFieldKey(key: string): boolean {
+  return new Set([
+    "project_title",
+    "student_name",
+    "usn",
+    "name_usn",
+    "semester",
+    "semester_section",
+    "section",
+    "lab_batch",
+    "date_of_submission",
+    "guide_name",
+    "guide_designation",
+    "guide_name_designation",
+    "academic_year",
+    "department",
+    "college",
+    "course",
+    "subject",
+    "faculty",
+  ]).has(key);
+}
+
+function placeholderTextForKey(key: string, label: string): string {
+  switch (key) {
+    case "project_title":
+      return "[Project Title]";
+    case "student_name":
+      return "[Student Name(s)]";
+    case "usn":
+      return "[USN / Reg. No.]";
+    case "name_usn":
+      return "[Name & USN]";
+    case "semester":
+      return "[Semester]";
+    case "semester_section":
+      return "[Semester and Section]";
+    case "section":
+      return "[Section]";
+    case "lab_batch":
+      return "[Lab Batch]";
+    case "date_of_submission":
+      return "[Date of Submission]";
+    case "guide_name":
+      return "[Guide Name]";
+    case "guide_designation":
+      return "[Guide Designation]";
+    case "guide_name_designation":
+      return "[Dr./Prof. Name, Designation]";
+    case "academic_year":
+      return "[Academic Year]";
+    case "department":
+      return "[Department]";
+    case "college":
+      return "[College]";
+    case "course":
+      return "[Course]";
+    case "subject":
+      return "[Subject]";
+    case "faculty":
+      return "[Faculty]";
+    default:
+      return label ? `[${label}]` : "";
+  }
+}
+
+function metadataValueForField(
+  key: string,
+  metadata: RenderMetadata,
+): string | undefined {
+  const supplied = metadata.placeholderValues?.[key];
+  if (typeof supplied === "string" && supplied.trim()) {
+    return supplied.trim();
+  }
+
+  switch (key) {
+    case "project_title":
+      return metadata.projectTitle;
+    case "student_name":
+      return metadata.studentName;
+    case "usn":
+      return metadata.usn;
+    case "name_usn":
+      return (
+        metadata.nameUsn ||
+        [metadata.studentName, metadata.usn ? `(${metadata.usn})` : ""]
+          .filter(Boolean)
+          .join(" ")
+          .trim() ||
+        undefined
+      );
+    case "semester":
+      return metadata.semester;
+    case "semester_section":
+      return (
+        metadata.semesterSection ||
+        [metadata.semester, metadata.section].filter(Boolean).join(" and ") ||
+        undefined
+      );
+    case "section":
+      return metadata.section;
+    case "lab_batch":
+      return metadata.labBatch;
+    case "date_of_submission":
+      return metadata.dateOfSubmission;
+    case "guide_name":
+      return metadata.guideName;
+    case "guide_designation":
+      return metadata.guideDesignation;
+    case "guide_name_designation":
+      return (
+        metadata.guideNameDesignation ||
+        [metadata.guideName, metadata.guideDesignation]
+          .filter(Boolean)
+          .join(", ") ||
+        undefined
+      );
+    case "academic_year":
+      return metadata.academicYear;
+    case "department":
+      return metadata.department;
+    case "college":
+      return metadata.college;
+    case "course":
+      return metadata.course;
+    case "subject":
+      return metadata.subject;
+    case "faculty":
+      return metadata.faculty;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Find the personal / title-page values a template expects. Content
+ * placeholders such as [Author, Year] are deliberately excluded because the
+ * generator fills those from project sources.
+ */
+function collectPlaceholderFields(body: Element): TemplatePlaceholderField[] {
+  const fields: TemplatePlaceholderField[] = [];
+  const seen = new Set<string>();
+
+  const add = (field: TemplatePlaceholderField) => {
+    if (!field.key || seen.has(field.key)) {
+      const existing = fields.find((entry) => entry.key === field.key);
+      if (existing && !existing.placeholder && field.placeholder) {
+        existing.placeholder = field.placeholder;
+      }
+      return;
+    }
+    seen.add(field.key);
+    fields.push(field);
+  };
+
+  for (const table of allElements(body, "tbl")) {
+    for (const row of directChildren(table, "tr")) {
+      const cells = directChildren(row, "tc");
+      if (cells.length < 2) continue;
+
+      const label = textOf(cells[0])
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/:\s*$/, "");
+      if (!label || label.length > 80) continue;
+      if (/signature/i.test(label)) continue;
+      if (isContentPlaceholder(label)) continue;
+
+      const value = textOf(cells[1]).replace(/\s+/g, " ").trim();
+      const token = value.match(/\[[^\]]{2,80}\]/)?.[0] ?? "";
+      // Keep genuinely filled values as-is, but include empty cells and
+      // partially broken bracket placeholders (some Word files split a
+      // content control so only "[" survives in the text run).
+      if (value && !token && !/^\[/.test(value)) continue;
+
+      const key = fieldKeyForLabel(label);
+      if (!isPersonalFieldKey(key)) continue;
+      add({ key, label, placeholder: token, kind: "table-cell" });
+    }
+  }
+
+  // Read whole paragraphs rather than individual runs: Word frequently splits
+  // a placeholder such as "[Name & USN]" across several <w:t> nodes.
+  for (const paragraph of allElements(body, "p")) {
+    const text = textOf(paragraph);
+    for (const match of text.matchAll(/\[[^\[\]]{2,80}\]/g)) {
+      const token = match[0];
+      const label = token.slice(1, -1).trim();
+      if (isContentPlaceholder(label)) continue;
+      const key = fieldKeyForLabel(label);
+      if (!isPersonalFieldKey(key)) continue;
+      add({ key, label, placeholder: token, kind: "inline" });
+    }
+  }
+
+  return fields.slice(0, 20);
 }
 
 function isParagraph(node: Element): boolean {
@@ -456,14 +788,32 @@ export async function extractTemplateLayout(
   const children = elementChildren(body);
   const headings: TemplateHeading[] = [];
   const tables: TemplateTableLayout[] = [];
+  const imagePlaceholders: TemplateImagePlaceholder[] = [];
   let currentHeading: string | null = null;
+  let currentSectionIsStatic = false;
 
   for (const child of children) {
     if (isParagraph(child)) {
       const level = headingLevel(child);
       if (level) {
         currentHeading = textOf(child).trim();
+        currentSectionIsStatic = isStaticSection(currentHeading);
         headings.push({ text: currentHeading, level });
+      } else if (
+        currentHeading &&
+        !currentSectionIsStatic &&
+        isImagePlaceholder(child)
+      ) {
+        imagePlaceholders.push({
+          index: imagePlaceholders.length,
+          caption: imageCaption(
+            textOf(child),
+            imagePlaceholders.length + 1,
+            currentHeading,
+          ),
+          prompt: textOf(child).trim(),
+          sectionHeading: currentHeading,
+        });
       }
     } else if (isTable(child)) {
       const table = describeTable(child, currentHeading);
@@ -477,7 +827,16 @@ export async function extractTemplateLayout(
     tables,
     pageSize: extractPageSize(sectPr),
     margins: extractMargins(sectPr),
+    imagePlaceholders,
+    placeholderFields: collectPlaceholderFields(body),
   };
+}
+
+export async function extractPlaceholderFields(
+  buffer: Buffer,
+): Promise<TemplatePlaceholderField[]> {
+  const layout = await extractTemplateLayout(buffer);
+  return layout.placeholderFields;
 }
 
 export function contentTablesForHeading(
@@ -532,8 +891,18 @@ function mapSections(
 
     if (index < 0 && isPlaceholderHeading(heading.text)) {
       // Placeholder headings are replaced by the outline heading. Pick the
-      // next unused section in document order.
-      index = sections.findIndex((_, i) => !used.has(i));
+      // next unused section in document order, but never steal a section that
+      // has its own real heading later in the template. Without this guard a
+      // short outline can move "System Architecture" or "Declaration" into an
+      // unrelated sub-theme placeholder.
+      const candidate = sections.findIndex((_, i) => !used.has(i));
+      if (candidate >= 0) {
+        const candidateHeading = normalizeHeading(sections[candidate].heading);
+        const hasOwnHeadingLater = headings
+          .slice(headingIndex + 1)
+          .some((later) => later.normalized === candidateHeading);
+        if (!hasOwnHeadingLater) index = candidate;
+      }
     }
 
     if (index < 0) {
@@ -636,19 +1005,309 @@ function createContentParagraph(
   return paragraph;
 }
 
-function imageCaption(text: string): string {
+function imageCaption(
+  text: string,
+  fallbackNumber = 1,
+  sectionHeading?: string | null,
+): string {
   const match = text.match(/figure\s+\d+\s*[:.]\s*[^\[]+/i);
   if (match) return match[0].trim().replace(/\s+/g, " ");
-  return "Figure 1: Proposed System Architecture";
+
+  const cleaned = text
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (cleaned) return cleaned;
+
+  return `Figure ${fallbackNumber}: ${sectionHeading?.trim() || "Project Figure"}`;
 }
 
-function createImageSpace(
+function detectImageMime(buffer: Buffer, fallback: string): string {
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+    return "image/jpeg";
+  }
+  return fallback || "image/png";
+}
+
+function imageDimensions(
+  buffer: Buffer,
+  mimeType: string,
+): { width: number; height: number } {
+  if (mimeType === "image/png" && buffer.length >= 24) {
+    return {
+      width: buffer.readUInt32BE(16),
+      height: buffer.readUInt32BE(20),
+    };
+  }
+
+  if (mimeType === "image/jpeg" && buffer.length >= 4) {
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+      if (buffer[offset] !== 0xff) {
+        offset++;
+        continue;
+      }
+      const marker = buffer[offset + 1];
+      if (marker === 0xd8 || marker === 0xd9) {
+        offset += 2;
+        continue;
+      }
+      if (offset + 4 > buffer.length) break;
+      const length = buffer.readUInt16BE(offset + 2);
+      if (
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        marker !== 0xc4 &&
+        marker !== 0xc8 &&
+        marker !== 0xcc
+      ) {
+        return {
+          width: buffer.readUInt16BE(offset + 7),
+          height: buffer.readUInt16BE(offset + 5),
+        };
+      }
+      offset += 2 + length;
+    }
+  }
+
+  return { width: 1024, height: 576 };
+}
+
+function createDrawingElement(
+  context: RenderContext,
+  relId: string,
+  width: number,
+  height: number,
+  altText: string,
+): Element {
+  const doc = context.doc;
+  const drawing = makeW(doc, "drawing");
+  const inline = doc.createElementNS(WP_NS, "wp:inline");
+  for (const [name, value] of Object.entries({
+    distT: "0",
+    distB: "0",
+    distL: "0",
+    distR: "0",
+  })) {
+    inline.setAttribute(name, value);
+  }
+
+  const extent = doc.createElementNS(WP_NS, "wp:extent");
+  extent.setAttribute("cx", String(width));
+  extent.setAttribute("cy", String(height));
+  inline.appendChild(extent);
+
+  const effectExtent = doc.createElementNS(WP_NS, "wp:effectExtent");
+  for (const [name, value] of Object.entries({
+    l: "0",
+    t: "0",
+    r: "0",
+    b: "0",
+  })) {
+    effectExtent.setAttribute(name, value);
+  }
+  inline.appendChild(effectExtent);
+
+  const drawingId = context.media.nextDrawingId++;
+  const docPr = doc.createElementNS(WP_NS, "wp:docPr");
+  docPr.setAttribute("id", String(drawingId));
+  docPr.setAttribute("name", `Generated figure ${drawingId}`);
+  docPr.setAttribute("descr", altText);
+  inline.appendChild(docPr);
+
+  const framePr = doc.createElementNS(WP_NS, "wp:cNvGraphicFramePr");
+  const locks = doc.createElementNS(A_NS, "a:graphicFrameLocks");
+  locks.setAttribute("noChangeAspect", "1");
+  framePr.appendChild(locks);
+  inline.appendChild(framePr);
+
+  const graphic = doc.createElementNS(A_NS, "a:graphic");
+  const graphicData = doc.createElementNS(A_NS, "a:graphicData");
+  graphicData.setAttribute(
+    "uri",
+    "http://schemas.openxmlformats.org/drawingml/2006/picture",
+  );
+  graphic.appendChild(graphicData);
+
+  const picture = doc.createElementNS(PIC_NS, "pic:pic");
+  const nvPicPr = doc.createElementNS(PIC_NS, "pic:nvPicPr");
+  const cNvPr = doc.createElementNS(PIC_NS, "pic:cNvPr");
+  cNvPr.setAttribute("id", String(drawingId));
+  cNvPr.setAttribute("name", `Generated figure ${drawingId}`);
+  cNvPr.setAttribute("descr", altText);
+  nvPicPr.appendChild(cNvPr);
+  nvPicPr.appendChild(doc.createElementNS(PIC_NS, "pic:cNvPicPr"));
+  picture.appendChild(nvPicPr);
+
+  const blipFill = doc.createElementNS(PIC_NS, "pic:blipFill");
+  const blip = doc.createElementNS(A_NS, "a:blip");
+  blip.setAttributeNS(R_NS, "r:embed", relId);
+  blipFill.appendChild(blip);
+  const stretch = doc.createElementNS(A_NS, "a:stretch");
+  stretch.appendChild(doc.createElementNS(A_NS, "a:fillRect"));
+  blipFill.appendChild(stretch);
+  picture.appendChild(blipFill);
+
+  const spPr = doc.createElementNS(PIC_NS, "pic:spPr");
+  const xfrm = doc.createElementNS(A_NS, "a:xfrm");
+  const off = doc.createElementNS(A_NS, "a:off");
+  off.setAttribute("x", "0");
+  off.setAttribute("y", "0");
+  xfrm.appendChild(off);
+  const ext = doc.createElementNS(A_NS, "a:ext");
+  ext.setAttribute("cx", String(width));
+  ext.setAttribute("cy", String(height));
+  xfrm.appendChild(ext);
+  spPr.appendChild(xfrm);
+  const prstGeom = doc.createElementNS(A_NS, "a:prstGeom");
+  prstGeom.setAttribute("prst", "rect");
+  prstGeom.appendChild(doc.createElementNS(A_NS, "a:avLst"));
+  spPr.appendChild(prstGeom);
+  picture.appendChild(spPr);
+
+  graphicData.appendChild(picture);
+  inline.appendChild(graphic);
+  drawing.appendChild(inline);
+  return drawing;
+}
+
+function registerImageMedia(
+  context: RenderContext,
+  image: RenderImage,
+): { relId: string; width: number; height: number; mimeType: string } {
+  const mimeType = detectImageMime(image.buffer, image.mimeType);
+  const extension =
+    mimeType === "image/jpeg" ? "jpg" : mimeType.split("/")[1] || "png";
+
+  let imageIndex = context.media.nextImageIndex++;
+  let path = `word/media/image${imageIndex}.${extension}`;
+  while (context.media.files.some((file) => file.path === path)) {
+    imageIndex = context.media.nextImageIndex++;
+    path = `word/media/image${imageIndex}.${extension}`;
+  }
+
+  const relId = `rId${context.media.nextRelationshipId++}`;
+  context.media.files.push({ path, buffer: image.buffer, mimeType });
+  context.media.relationships.push({
+    id: relId,
+    target: `media/image${imageIndex}.${extension}`,
+  });
+
+  const dimensions = imageDimensions(image.buffer, mimeType);
+  const maxWidth = 5_500_000;
+  const maxHeight = 4_000_000;
+  const scale = Math.min(
+    maxWidth / Math.max(1, dimensions.width),
+    maxHeight / Math.max(1, dimensions.height),
+  );
+
+  return {
+    relId,
+    width: Math.max(1, Math.round(dimensions.width * scale)),
+    height: Math.max(1, Math.round(dimensions.height * scale)),
+    mimeType,
+  };
+}
+
+function createImageParagraph(
   context: RenderContext,
   placeholder: Element,
-): Element[] {
+  image: RenderImage,
+  altText: string,
+): Element {
   const doc = context.doc;
-  const caption = imageCaption(textOf(placeholder));
+  const paragraph = makeW(doc, "p");
+  const sourcePPr = directChild(placeholder, "pPr");
+  if (sourcePPr) {
+    const cloned = sourcePPr.cloneNode(true) as Element;
+    for (const removable of ["numPr", "sectPr", "pageBreakBefore"]) {
+      const child = directChild(cloned, removable);
+      if (child) cloned.removeChild(child);
+    }
+    const existingJc = directChild(cloned, "jc");
+    if (existingJc) cloned.removeChild(existingJc);
+    const jc = makeW(doc, "jc");
+    setWAttr(jc, "val", "center");
+    cloned.appendChild(jc);
+    paragraph.appendChild(cloned);
+  } else {
+    const pPr = makeW(doc, "pPr");
+    const jc = makeW(doc, "jc");
+    setWAttr(jc, "val", "center");
+    pPr.appendChild(jc);
+    paragraph.appendChild(pPr);
+  }
 
+  const media = registerImageMedia(context, image);
+  const run = makeW(doc, "r");
+  run.appendChild(
+    createDrawingElement(
+      context,
+      media.relId,
+      media.width,
+      media.height,
+      altText,
+    ),
+  );
+  paragraph.appendChild(run);
+  return paragraph;
+}
+
+function createCaptionParagraph(
+  context: RenderContext,
+  placeholder: Element,
+  caption: string,
+): Element {
+  const doc = context.doc;
+  const captionP = makeW(doc, "p");
+  const sourcePPr = directChild(placeholder, "pPr");
+  if (sourcePPr) {
+    const cloned = sourcePPr.cloneNode(true) as Element;
+    for (const removable of ["numPr", "sectPr"]) {
+      const child = directChild(cloned, removable);
+      if (child) cloned.removeChild(child);
+    }
+    const captionJc = directChild(cloned, "jc");
+    if (captionJc) cloned.removeChild(captionJc);
+    const jcCaption = makeW(doc, "jc");
+    setWAttr(jcCaption, "val", "center");
+    cloned.appendChild(jcCaption);
+    const spacing = directChild(cloned, "spacing");
+    if (spacing) cloned.removeChild(spacing);
+    const spacingNew = makeW(doc, "spacing");
+    setWAttr(spacingNew, "before", "100");
+    setWAttr(spacingNew, "after", "200");
+    cloned.appendChild(spacingNew);
+    captionP.appendChild(cloned);
+  }
+
+  const captionRun = makeW(doc, "r");
+  const captionRPr = makeW(doc, "rPr");
+  const captionItalics = makeW(doc, "i");
+  captionRPr.appendChild(captionItalics);
+  const captionSize = makeW(doc, "sz");
+  setWAttr(captionSize, "val", "20");
+  captionRPr.appendChild(captionSize);
+  captionRun.appendChild(captionRPr);
+  const captionText = makeW(doc, "t");
+  captionText.setAttributeNS(XML_NS, "xml:space", "preserve");
+  captionText.appendChild(doc.createTextNode(caption));
+  captionRun.appendChild(captionText);
+  captionP.appendChild(captionRun);
+  return captionP;
+}
+
+function createPlaceholderBox(context: RenderContext): Element {
+  const doc = context.doc;
   const table = makeW(doc, "tbl");
 
   const tblPr = makeW(doc, "tblPr");
@@ -735,43 +1394,38 @@ function createImageSpace(
   row.appendChild(cell);
   table.appendChild(row);
 
-  const captionP = makeW(doc, "p");
-  const sourcePPr = directChild(placeholder, "pPr");
-  if (sourcePPr) {
-    const cloned = sourcePPr.cloneNode(true) as Element;
-    for (const removable of ["numPr", "sectPr"]) {
-      const child = directChild(cloned, removable);
-      if (child) cloned.removeChild(child);
-    }
-    const captionJc = directChild(cloned, "jc");
-    if (captionJc) cloned.removeChild(captionJc);
-    const jcCaption = makeW(doc, "jc");
-    setWAttr(jcCaption, "val", "center");
-    cloned.appendChild(jcCaption);
-    const spacing = directChild(cloned, "spacing");
-    if (spacing) cloned.removeChild(spacing);
-    const spacingNew = makeW(doc, "spacing");
-    setWAttr(spacingNew, "before", "100");
-    setWAttr(spacingNew, "after", "200");
-    cloned.appendChild(spacingNew);
-    captionP.appendChild(cloned);
+  return table;
+}
+
+function createImageSpace(
+  context: RenderContext,
+  placeholder: Element,
+  image: RenderImage | null,
+): Element[] {
+  const caption =
+    image?.caption?.trim() ||
+    imageCaption(
+      textOf(placeholder),
+      context.imageCursor,
+      context.metadata.projectTitle,
+    );
+
+  if (image) {
+    return [
+      createImageParagraph(
+        context,
+        placeholder,
+        image,
+        image.altText || caption,
+      ),
+      createCaptionParagraph(context, placeholder, caption),
+    ];
   }
 
-  const captionRun = makeW(doc, "r");
-  const captionRPr = makeW(doc, "rPr");
-  const captionItalics = makeW(doc, "i");
-  captionRPr.appendChild(captionItalics);
-  const captionSize = makeW(doc, "sz");
-  setWAttr(captionSize, "val", "20");
-  captionRPr.appendChild(captionSize);
-  captionRun.appendChild(captionRPr);
-  const captionText = makeW(doc, "t");
-  captionText.setAttributeNS(XML_NS, "xml:space", "preserve");
-  captionText.appendChild(doc.createTextNode(caption));
-  captionRun.appendChild(captionText);
-  captionP.appendChild(captionRun);
-
-  return [table, captionP];
+  return [
+    createPlaceholderBox(context),
+    createCaptionParagraph(context, placeholder, caption),
+  ];
 }
 
 function rowsForTables(
@@ -906,7 +1560,9 @@ function renderRegion(
       tableIndex++;
       output.push(element);
     } else if (isImagePlaceholder(element)) {
-      output.push(...createImageSpace(context, element));
+      const image = context.images[context.imageCursor] ?? null;
+      context.imageCursor++;
+      output.push(...createImageSpace(context, element, image));
     } else if (isGuidanceParagraph(element)) {
       const cleaned = cleanGuidanceParagraph(element);
       if (cleaned) output.push(cleaned);
@@ -938,35 +1594,40 @@ function fillTitlePage(
   metadata: RenderMetadata,
 ): void {
   const firstHeading = children.findIndex((child) => headingLevel(child) !== null);
-  const beforeFirstHeading = firstHeading >= 0 ? children.slice(0, firstHeading) : children;
-  const titleTable = beforeFirstHeading.find(isTable);
-  if (!titleTable) return;
+  const beforeFirstHeading =
+    firstHeading >= 0 ? children.slice(0, firstHeading) : children;
 
-  for (const row of directChildren(titleTable, "tr")) {
-    const cells = directChildren(row, "tc");
-    if (cells.length < 2) continue;
-    const label = textOf(cells[0]).toLowerCase();
-    let value = "";
-    if (label.includes("title")) value = metadata.projectTitle ?? "[Project Title]";
-    else if (label.includes("student name")) {
-      value = metadata.studentName ?? "[Student Name(s)]";
-    } else if (label.includes("usn") || label.includes("reg.")) {
-      value = metadata.usn ?? "[USN / Reg. No.]";
-    } else if (label.includes("semester") || label.includes("section")) {
-      value = "[Semester and Section]";
-    } else if (label.includes("lab batch")) {
-      value = "[Lab Batch]";
-    } else if (label.includes("date")) {
-      value = "[Date of Submission]";
+  for (const table of beforeFirstHeading.filter(isTable)) {
+    const doc = table.ownerDocument as Document;
+    for (const row of directChildren(table, "tr")) {
+      const cells = directChildren(row, "tc");
+      if (cells.length < 2) continue;
+
+      const label = textOf(cells[0])
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/:\s*$/, "");
+      if (!label) continue;
+
+      const key = fieldKeyForLabel(label);
+      if (!isPersonalFieldKey(key)) continue;
+
+      const value = metadataValueForField(key, metadata);
+      const current = textOf(cells[1]).trim();
+      if (value) {
+        setCellText(doc, cells[1], value);
+      } else if (!current || /^\[/.test(current)) {
+        const placeholder = placeholderTextForKey(key, label);
+        if (placeholder) setCellText(doc, cells[1], placeholder);
+      }
     }
-    if (value) setCellText(createDocumentProxy(cells[0]), cells[1], value);
   }
 
   if (metadata.academicYear) {
     for (const paragraph of beforeFirstHeading.filter(isParagraph)) {
       if (/academic\s+year/i.test(textOf(paragraph))) {
         setParagraphText(
-          createDocumentProxy(paragraph),
+          paragraph.ownerDocument as Document,
           paragraph,
           `Academic Year: ${metadata.academicYear}`,
         );
@@ -975,19 +1636,15 @@ function fillTitlePage(
   }
 }
 
-function createDocumentProxy(element: Element): Document {
-  return element.ownerDocument as Document;
-}
-
 function replaceTextInElement(
   element: Element,
   search: string,
   replacement: string,
-): void {
+): boolean {
   const nodes = allElements(element, "t");
   const fullText = nodes.map((node) => node.textContent ?? "").join("");
   const searchStart = fullText.indexOf(search);
-  if (searchStart < 0) return;
+  if (searchStart < 0) return false;
   const searchEnd = searchStart + search.length;
 
   let offset = 0;
@@ -1008,28 +1665,136 @@ function replaceTextInElement(
     inserted = true;
     node.textContent = `${before}${insertedText}${after}`;
   }
+
+  return true;
+}
+
+function replaceAllTextInElement(
+  element: Element,
+  search: string,
+  replacement: string,
+): boolean {
+  let replaced = false;
+  for (let guard = 0; guard < 20; guard++) {
+    if (!replaceTextInElement(element, search, replacement)) break;
+    replaced = true;
+  }
+  return replaced;
 }
 
 function replacePlaceholdersInTables(
   body: Element,
   metadata: RenderMetadata,
 ): void {
-  for (const table of allElements(body, "tbl")) {
-    for (const cell of allElements(table, "tc")) {
-      const text = textOf(cell).trim();
-      if (/\[name\s*&\s*usn\]/i.test(text)) {
-        const student = metadata.studentName ?? "[Student Name]";
-        const usn = metadata.usn ? ` (${metadata.usn})` : "";
-        replaceTextInElement(cell, "[Name & USN]", `${student}${usn}`);
-      }
-      if (/\[usn\s*\/?\s*reg\.?\s*no\.?\]/i.test(text)) {
-        replaceTextInElement(
-          cell,
-          "[USN / Reg. No.]",
-          metadata.usn ?? "[USN / Reg. No.]",
+  for (const field of collectPlaceholderFields(body)) {
+    if (!field.placeholder) continue;
+    const value = metadataValueForField(field.key, metadata);
+    if (!value) continue;
+    replaceAllTextInElement(body, field.placeholder, value);
+  }
+}
+
+function ensureDrawingNamespaces(doc: Document): void {
+  const root = doc.documentElement;
+  const namespaces: Record<string, string> = {
+    wp: WP_NS,
+    a: A_NS,
+    pic: PIC_NS,
+    r: R_NS,
+  };
+  for (const [prefix, namespace] of Object.entries(namespaces)) {
+    if (!root.hasAttributeNS(XMLNS_NS, prefix)) {
+      root.setAttributeNS(XMLNS_NS, `xmlns:${prefix}`, namespace);
+    }
+  }
+}
+
+async function createMediaState(
+  zip: JSZip,
+  doc: Document,
+): Promise<MediaState> {
+  let maxImageIndex = 0;
+  for (const name of Object.keys(zip.files)) {
+    const match = name.match(/^word\/media\/image(\d+)\./i);
+    if (match) maxImageIndex = Math.max(maxImageIndex, Number(match[1]));
+  }
+
+  let maxRelationshipId = 0;
+  const relationshipsFile = zip.file("word/_rels/document.xml.rels");
+  if (relationshipsFile) {
+    const relationships = await relationshipsFile.async("string");
+    for (const match of relationships.matchAll(/Id="rId(\d+)"/g)) {
+      maxRelationshipId = Math.max(maxRelationshipId, Number(match[1]));
+    }
+  }
+
+  let maxDrawingId = 0;
+  const drawingNodes = Array.from(
+    doc.getElementsByTagNameNS(WP_NS, "docPr"),
+  );
+  for (const node of drawingNodes) {
+    const id = Number(node.getAttribute("id"));
+    if (Number.isFinite(id)) maxDrawingId = Math.max(maxDrawingId, id);
+  }
+
+  return {
+    nextImageIndex: maxImageIndex + 1,
+    nextRelationshipId: maxRelationshipId + 1,
+    nextDrawingId: maxDrawingId + 1,
+    files: [],
+    relationships: [],
+  };
+}
+
+async function writeMediaToZip(
+  zip: JSZip,
+  media: MediaState,
+): Promise<void> {
+  if (media.files.length === 0) return;
+
+  for (const file of media.files) {
+    zip.file(file.path, file.buffer);
+  }
+
+  const relationshipType =
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+  const additions = media.relationships
+    .map(
+      (relationship) =>
+        `<Relationship Id="${relationship.id}" Type="${relationshipType}" Target="${relationship.target}"/>`,
+    )
+    .join("");
+
+  const relationshipsFile = zip.file("word/_rels/document.xml.rels");
+  const relationships = relationshipsFile
+    ? await relationshipsFile.async("string")
+    : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  zip.file(
+    "word/_rels/document.xml.rels",
+    relationships.replace(/<\/Relationships>\s*$/, `${additions}</Relationships>`),
+  );
+
+  const contentTypesFile = zip.file("[Content_Types].xml");
+  if (contentTypesFile) {
+    let contentTypes = await contentTypesFile.async("string");
+    const byExtension = new Map<string, string>();
+    for (const file of media.files) {
+      const extension = file.path.split(".").pop()?.toLowerCase();
+      if (extension) byExtension.set(extension, file.mimeType);
+    }
+    for (const [extension, mimeType] of byExtension) {
+      const hasDefault = new RegExp(
+        `<Default[^>]*Extension=["']${extension}["']`,
+        "i",
+      ).test(contentTypes);
+      if (!hasDefault) {
+        contentTypes = contentTypes.replace(
+          /<\/Types>\s*$/,
+          `<Default Extension="${extension}" ContentType="${mimeType}"/></Types>`,
         );
       }
     }
+    zip.file("[Content_Types].xml", contentTypes);
   }
 }
 
@@ -1047,6 +1812,9 @@ export async function renderTemplateDocument(
   );
   const body = allElements(doc, "body")[0];
   if (!body) throw new Error("Template DOCX has no document body");
+
+  ensureDrawingNamespaces(doc);
+  const media = await createMediaState(zip, doc);
 
   const children = elementChildren(body);
   fillTitlePage(children, input.metadata ?? {});
@@ -1087,6 +1855,9 @@ export async function renderTemplateDocument(
     bodyParagraph,
     listParagraph,
     metadata: input.metadata ?? {},
+    images: input.images ?? [],
+    imageCursor: 0,
+    media,
   };
 
   const mapped = new Set<RenderSection>();
@@ -1160,6 +1931,7 @@ export async function renderTemplateDocument(
   }
 
   replacePlaceholdersInTables(body, input.metadata ?? {});
+  await writeMediaToZip(zip, media);
 
   const serialized = new XMLSerializer().serializeToString(doc);
   zip.file("word/document.xml", serialized);

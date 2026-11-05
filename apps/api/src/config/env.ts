@@ -29,6 +29,26 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(["gemini", "xai", "anthropic"]).default("gemini"),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+  GEMINI_IMAGE_ENABLED: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || val === "") return undefined;
+      if (typeof val === "string") return val.toLowerCase() === "true";
+      return Boolean(val);
+    },
+    z.boolean().default(true),
+  ),
+  GEMINI_IMAGE_MODEL: z.string().default("gemini-3.1-flash-image"),
+  GEMINI_IMAGE_MAX_FIGURES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(10)
+    .default(4),
+  GEMINI_IMAGE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(90000),
   XAI_API_KEY: z.string().optional(),
   XAI_MODEL: z.string().default("grok-3"),
   ANTHROPIC_API_KEY: z.string().optional(),

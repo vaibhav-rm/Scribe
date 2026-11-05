@@ -281,7 +281,11 @@ export function DocumentPage() {
       } else {
         window.location.href = data.downloadUrl;
       }
-      toast.success(`${format.toUpperCase()} export ready`);
+      toast.success(
+        data.filename
+          ? `Downloading ${data.filename}`
+          : `${format.toUpperCase()} export ready`,
+      );
     } catch {
       downloadWindow?.close();
       toast.error("Export failed");
@@ -460,6 +464,8 @@ export function DocumentPage() {
   }
 
   const sections = draftContent.current?.sections ?? [];
+  const imageWarnings: string[] =
+    document.content_json?.metadata?.imageWarnings ?? [];
 
   return (
     <div className="space-y-6">
@@ -544,6 +550,20 @@ export function DocumentPage() {
           </Button>
         </div>
       </div>
+
+      {imageWarnings.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-600/25 bg-amber-500/10 p-4 text-sm text-amber-900">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            Some template figures could not be generated
+          </div>
+          <ul className="list-disc space-y-1 pl-6 text-xs">
+            {imageWarnings.map((warning, index) => (
+              <li key={index}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="paper-surface corner-marks rounded-xl p-3 sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3 border-b border-paper-border pb-3 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-paper-muted-foreground">

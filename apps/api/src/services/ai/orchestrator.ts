@@ -20,8 +20,11 @@ import { downloadFile, uploadFile } from "../../lib/storage.js";
 import {
   contentTablesForHeading,
   extractTemplateLayout,
+  type GeneratedImageAsset,
+  type RenderImage,
   type TemplateLayout,
 } from "../docx-template.js";
+import { generateTemplateImages } from "./image-generation.js";
 import { randomUUID } from "node:crypto";
 
 export interface RunGenerationInput {
@@ -49,6 +52,11 @@ export interface RunGenerationInput {
    * is skipped and the approved outline is used verbatim.
    */
   outline?: DocumentOutline | null;
+  /**
+   * Optional values for title-page / signature placeholders. Empty values are
+   * ignored so the template keeps its visible placeholders.
+   */
+  placeholderValues?: Record<string, string> | null;
 }
 
 /**
@@ -68,6 +76,20 @@ function buildDocumentTitle(
   return projectTitle ? `${projectTitle} — ${label}` : label;
 }
 
+function normalizePlaceholderValues(
+  values: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  if (!values || typeof values !== "object") return {};
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim().slice(0, 200);
+    if (!trimmed) continue;
+    normalized[key.slice(0, 80)] = trimmed;
+  }
+  return normalized;
+}
+
 function currentAcademicYear(date = new Date()): string {
   const year = date.getFullYear();
   const month = date.getMonth(); // 0 = January
@@ -84,6 +106,11 @@ function currentAcademicYear(date = new Date()): string {
  */
 export async function runGeneration(input: RunGenerationInput): Promise<void> {
   const { jobId, ownerId, projectId, documentType, resources } = input;
+  const placeholderValues = normalizePlaceholderValues(
+    input.placeholderValues ??
+      (input.outline as any)?.placeholderValues ??
+      null,
+  );
 
   try {
     if (await isJobCancelled(jobId)) {
@@ -160,10 +187,33 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
     ).slice(0, 7);
 
     const renderMetadata = {
-      projectTitle: project.data?.title ?? undefined,
-      studentName: ownerProfile.data?.display_name ?? undefined,
-      academicYear: currentAcademicYear(),
+      projectTitle:
+        placeholderValues.project_title ??
+        project.data?.title ??
+        undefined,
+      studentName:
+        placeholderValues.student_name ??
+        ownerProfile.data?.display_name ??
+        undefined,
+      usn: placeholderValues.usn,
+      academicYear:
+        placeholderValues.academic_year ?? currentAcademicYear(),
       keywords,
+      semester: placeholderValues.semester,
+      semesterSection: placeholderValues.semester_section,
+      section: placeholderValues.section,
+      labBatch: placeholderValues.lab_batch,
+      dateOfSubmission: placeholderValues.date_of_submission,
+      guideName: placeholderValues.guide_name,
+      guideDesignation: placeholderValues.guide_designation,
+      nameUsn: placeholderValues.name_usn,
+      guideNameDesignation: placeholderValues.guide_name_designation,
+      department: placeholderValues.department,
+      college: placeholderValues.college,
+      course: placeholderValues.course,
+      subject: placeholderValues.subject,
+      faculty: placeholderValues.faculty,
+      placeholderValues,
     };
 
     // Stage C: Outline generation (or use the outline the user already reviewed)
@@ -180,7 +230,12 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
     // and it can be audited later.
     await supabaseAdmin
       .from("generation_jobs")
-      .update({ outline_json: outline })
+      .update({
+        outline_json:
+          Object.keys(placeholderValues).length > 0
+            ? { ...outline, placeholderValues }
+            : outline,
+      })
       .eq("id", jobId);
 
     logger.info(
@@ -252,6 +307,62 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
       return;
     }
 
+    // Figures are generated from the same project knowledge and source
+    // excerpts used for the text. A provider failure leaves the template's
+    // visible figure placeholder in place instead of failing the document.
+    await updateJobProgress(jobId, { progress: 86 });
+    const imageWarnings: string[] = [];
+    const generatedImageAssets: GeneratedImageAsset[] = [];
+    let renderImages: Array<RenderImage | null> = [];
+
+    if (templateLayout?.imagePlaceholders.length) {
+      const imageResult = await generateTemplateImages({
+        placeholders: templateLayout.imagePlaceholders,
+        projectTitle: renderMetadata.projectTitle ?? knowledge.title,
+        projectDescription: project.data?.description ?? null,
+        documentType,
+        knowledge,
+        sections: generatedSections.map((section) => ({
+          heading: section.heading,
+          content: section.content,
+        })),
+        resources,
+      });
+      renderImages = imageResult.images;
+      imageWarnings.push(...imageResult.warnings);
+
+      for (const image of imageResult.images) {
+        if (!image) continue;
+        const extension = image.mimeType.includes("jpeg") ? "jpg" : "png";
+        const imagePath = `documents/${ownerId}/${jobId}/images/${image.index}-${randomUUID()}.${extension}`;
+        try {
+          await uploadFile(
+            "generated-documents",
+            imagePath,
+            image.buffer,
+            image.mimeType,
+          );
+          generatedImageAssets.push({
+            index: image.index,
+            storagePath: imagePath,
+            mimeType: image.mimeType,
+            caption: image.caption,
+            altText: image.altText,
+          });
+        } catch (uploadError: any) {
+          imageWarnings.push(
+            `Figure "${image.caption}" was embedded in the DOCX but could not be saved for future re-exports: ${uploadError?.message ?? "storage error"}`,
+          );
+        }
+      }
+    }
+
+    const documentMetadata = {
+      ...renderMetadata,
+      generatedImages: generatedImageAssets,
+      imageWarnings,
+    };
+
     // Stage F: Document assembly (DOCX)
     await updateJobProgress(jobId, { progress: 90 });
     const documentTitle = buildDocumentTitle(documentType, project.data?.title);
@@ -260,7 +371,8 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
       sections: generatedSections,
       templateSpec: input.templateVersion?.parsed_specification ?? {},
       templateBuffer,
-      metadata: renderMetadata,
+      metadata: documentMetadata,
+      images: renderImages,
       outputFormat: "docx",
     });
 
@@ -302,7 +414,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
         content_json: {
           title: documentTitle,
           sections: generatedSections,
-          metadata: renderMetadata,
+          metadata: documentMetadata,
         },
         // Keep the spec so a later export after editing can rebuild the DOCX
         // with the same formatting instead of reverting to defaults.
@@ -328,7 +440,7 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
           content_json: {
             title: documentTitle,
             sections: generatedSections,
-            metadata: renderMetadata,
+            metadata: documentMetadata,
           },
           source: "generation",
         });
@@ -338,7 +450,12 @@ export async function runGeneration(input: RunGenerationInput): Promise<void> {
     }
 
     // Complete the job
-    const allWarnings = [...assemblyWarnings, ...final.warnings, ...validation.warnings];
+    const allWarnings = [
+      ...assemblyWarnings,
+      ...final.warnings,
+      ...validation.warnings,
+      ...imageWarnings,
+    ];
     await completeJob(jobId, 0); // actual cost tracked separately
     await updateJobProgress(jobId, { progress: 100 });
 

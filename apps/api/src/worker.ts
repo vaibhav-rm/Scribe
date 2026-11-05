@@ -42,6 +42,21 @@ async function processNextJob(): Promise<boolean> {
       ? await loadAccessibleTemplateVersion(job.template_version_id, job.owner_id)
       : null;
 
+    // The approved outline (if the user reviewed one) is stored on the job.
+    // When no outline was reviewed, outline_json may contain only the
+    // optional title-page values, so it is not a usable outline.
+    const stored = ((job as any).outline_json ?? null) as any;
+    const outline =
+      stored && Array.isArray(stored.sections) && stored.sections.length > 0
+        ? stored
+        : null;
+    const placeholderValues =
+      stored &&
+      stored.placeholderValues &&
+      typeof stored.placeholderValues === "object"
+        ? (stored.placeholderValues as Record<string, string>)
+        : null;
+
     await runGeneration({
       jobId: job.id,
       projectId: job.project_id,
@@ -49,8 +64,8 @@ async function processNextJob(): Promise<boolean> {
       templateVersion,
       documentType: job.document_type,
       resources,
-      // The approved outline (if the user reviewed one) is stored on the job.
-      outline: ((job as any).outline_json ?? null) as any,
+      outline,
+      placeholderValues,
     });
   } catch (err: any) {
     logger.error({ err, jobId: job.id }, "worker job failed");

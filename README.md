@@ -133,6 +133,10 @@ From the repo root:
 | `AI_PROVIDER` | `gemini`, `xai`, or `anthropic` | `gemini` |
 | `GEMINI_API_KEY` | Gemini API key | `...` |
 | `GEMINI_MODEL` | Gemini model name | `gemini-3.8-flash` |
+| `GEMINI_IMAGE_ENABLED` | Draw template figure placeholders with Gemini | `true` |
+| `GEMINI_IMAGE_MODEL` | Gemini image model | `gemini-3.1-flash-image` |
+| `GEMINI_IMAGE_MAX_FIGURES` | Maximum figures generated per document | `4` |
+| `GEMINI_IMAGE_TIMEOUT_MS` | Per-figure image request timeout | `90000` |
 | `XAI_API_KEY` | xAI Grok API key (optional) | `...` |
 | `ANTHROPIC_API_KEY` | Anthropic Claude key (optional) | `...` |
 | `RAZORPAY_KEY_ID` | Razorpay key ID (test mode OK) | `...` |
@@ -344,6 +348,9 @@ All core features implemented and tested:
 - [x] Template upload + DOCX parsing with specification JSON, review/edit, and new versions
 - [x] AI generation pipeline (Gemini): knowledge extraction, outline, section-by-section generation, validation, DOCX assembly
 - [x] Template-faithful DOCX export: edits the uploaded template directly to keep page size, margins, heading styles, numbered headings, tables, and figure spaces; AI fills the template's content tables
+- [x] Template figures: Gemini draws each figure placeholder from the project sources, embeds it in the DOCX, and keeps the visible placeholder when generation is unavailable
+- [x] Optional title-page fields from the template are collected before generation; blank values keep the template placeholder
+- [x] Human-readable download filenames derived from the document title and version (for example `Smart Irrigation System Synopsis v2.docx`)
 - [x] Outline review workflow before generation
 - [x] Background generation worker with database-backed queue (`GENERATION_MODE=worker`)
 - [x] Document editor with autosave, per-section regeneration, version history/restore, DOCX/PDF export

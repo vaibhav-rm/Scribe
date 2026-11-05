@@ -95,6 +95,14 @@ export const CreateGenerationSchema = z.object({
     document_type: z.string().min(1),
     /** Optional reviewed outline to generate from instead of re-planning. */
     outline_id: z.string().uuid().optional().nullable(),
+    /**
+     * Optional values for title-page / signature fields. Keys come from
+     * GET /templates/:id/placeholders. Empty strings keep the placeholder.
+     */
+    placeholder_values: z
+      .record(z.string().min(1).max(80), z.string().max(200))
+      .optional()
+      .nullable(),
   }),
 });
 

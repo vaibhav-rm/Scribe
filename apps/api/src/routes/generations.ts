@@ -233,6 +233,7 @@ router.post(
       template_version_id: templateVersionId,
       document_type: documentType,
       outline_id: outlineId,
+      placeholder_values: placeholderValues,
     } = req.validated!.body;
 
     const project = await resolveProject(projectId, ownerId);
@@ -351,12 +352,33 @@ router.post(
       return;
     }
 
-    // Persist the reviewed outline on the job so a worker (not just inline
-    // execution) generates from exactly what the user approved.
-    if (approvedOutline) {
+    const normalizedPlaceholderValues = Object.fromEntries(
+      Object.entries(
+        (placeholderValues ?? {}) as Record<string, unknown>,
+      )
+        .filter(
+          (entry): entry is [string, string] =>
+            typeof entry[1] === "string" && entry[1].trim().length > 0,
+        )
+        .map(([key, value]) => [key.slice(0, 80), value.trim().slice(0, 200)]),
+    );
+
+    // Persist the reviewed outline and optional placeholder values on the job
+    // so a worker (not just inline execution) generates from exactly what the
+    // user approved.
+    if (approvedOutline || Object.keys(normalizedPlaceholderValues).length > 0) {
+      const outlineJson =
+        approvedOutline || Object.keys(normalizedPlaceholderValues).length > 0
+          ? {
+              ...(approvedOutline ?? {}),
+              ...(Object.keys(normalizedPlaceholderValues).length > 0
+                ? { placeholderValues: normalizedPlaceholderValues }
+                : {}),
+            }
+          : null;
       const { error: outlineSaveErr } = await supabaseAdmin
         .from("generation_jobs")
-        .update({ outline_json: approvedOutline })
+        .update({ outline_json: outlineJson })
         .eq("id", job.id);
       if (outlineSaveErr) {
         logger.error(
@@ -384,6 +406,7 @@ router.post(
       documentType,
       resources: project.resources,
       outline: approvedOutline,
+      placeholderValues: normalizedPlaceholderValues,
     };
 
     // In worker mode the job stays queued and is claimed by the worker

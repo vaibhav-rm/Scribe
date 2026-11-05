@@ -3,6 +3,8 @@ import mammoth from "mammoth";
 import {
   extractTemplateLayout,
   isContentTableLayout,
+  type TemplateImagePlaceholder,
+  type TemplatePlaceholderField,
 } from "./docx-template.js";
 
 export interface TemplateSpecification {
@@ -30,6 +32,10 @@ export interface TemplateSpecification {
   figureCaptions?: boolean;
   referenceStyle?: string;
   appendices?: boolean;
+  /** Personal / title-page fields the template expects the user to fill. */
+  placeholderFields?: TemplatePlaceholderField[];
+  /** Figure spaces where the generator should create a diagram. */
+  imagePlaceholders?: TemplateImagePlaceholder[];
   outputFormats: ("docx" | "pdf")[];
   notes?: string;
 }
@@ -121,6 +127,8 @@ export async function parseDocxTemplate(
         headers: table.headers,
         rowLabels: table.rowLabels,
       })),
+    placeholderFields: layout?.placeholderFields ?? [],
+    imagePlaceholders: layout?.imagePlaceholders ?? [],
     outputFormats: ["docx", "pdf"],
     notes: placeholders.length
       ? `Detected ${placeholders.length} placeholder(s): ${placeholders.slice(0, 5).join(", ")}${placeholders.length > 5 ? "..." : ""}`

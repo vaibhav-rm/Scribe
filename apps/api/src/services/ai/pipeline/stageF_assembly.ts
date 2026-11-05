@@ -2,6 +2,7 @@ import { Packer, Paragraph, TextRun, Document, HeadingLevel } from "docx";
 import {
   renderTemplateDocument,
   type GeneratedTable,
+  type RenderImage,
   type RenderMetadata,
 } from "../../docx-template.js";
 
@@ -22,6 +23,7 @@ export interface StageFInput {
    */
   templateBuffer?: Buffer;
   metadata?: RenderMetadata;
+  images?: Array<RenderImage | null>;
   outputFormat: "docx" | "pdf";
 }
 
@@ -55,6 +57,7 @@ export async function assembleDocument(
           warnings: section.warnings,
         })),
         metadata: input.metadata,
+        images: input.images,
       });
       return { buffer: rendered.buffer, warnings: rendered.warnings };
     } catch (error: any) {

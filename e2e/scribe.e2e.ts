@@ -196,7 +196,7 @@ test.describe.serial("Scribe E2E flows", () => {
     await page.getByRole("button", { name: "Close" }).last().click();
 
     await page.click('button:has-text("DOCX")');
-    await expect(page.locator("text=DOCX export ready")).toBeVisible({
+    await expect(page.getByText(/Downloading .*\.docx/i)).toBeVisible({
       timeout: 30000,
     });
   });

@@ -93,15 +93,23 @@ export async function uploadFile(
 /**
  * Generate a short-lived signed URL (default 5 minutes) for private download.
  * Only call this when a download is actually needed.
+ *
+ * `downloadName` makes Storage return a Content-Disposition attachment with
+ * that filename. Without it the browser would save the random storage key.
  */
 export async function getSignedUrl(
   bucket: StorageBucket,
   path: string,
   expiresInSeconds = 300,
+  downloadName?: string,
 ): Promise<string> {
   const { data, error } = await storageAdmin()
     .storage.from(bucket)
-    .createSignedUrl(path, expiresInSeconds);
+    .createSignedUrl(
+      path,
+      expiresInSeconds,
+      downloadName ? { download: downloadName } : undefined,
+    );
 
   if (error || !data?.signedUrl) {
     logger.error({ bucket, path, error }, "signed URL generation failed");

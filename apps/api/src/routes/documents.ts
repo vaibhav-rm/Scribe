@@ -17,6 +17,7 @@ import {
 import {
   contentTablesForHeading,
   extractTemplateLayout,
+  type RenderImage,
   type RenderMetadata,
 } from "../services/docx-template.js";
 import { createConverter, createTempDir } from "../services/conversion.js";
@@ -39,6 +40,7 @@ import path from "node:path";
 import { validate } from "../middleware/validate.js";
 import { auditLog } from "../services/audit.js";
 import { logger } from "../lib/logger.js";
+import { documentExportFilename } from "../lib/filename.js";
 
 const router = Router();
 const converter = createConverter();
@@ -301,13 +303,56 @@ function academicYear(date = new Date()): string {
  * The generated document keeps the generation job id, which points at the
  * exact template version used, so later edits still export in that format.
  */
+async function loadGeneratedImages(
+  metadata: RenderMetadata,
+): Promise<Array<RenderImage | null>> {
+  const assets = [...(metadata.generatedImages ?? [])].sort(
+    (a, b) => a.index - b.index,
+  );
+  if (assets.length === 0) return [];
+
+  // Keep the template's placeholder order. A failed figure leaves a null hole
+  // instead of shifting later images into the wrong figure space.
+  const lastIndex = Math.max(...assets.map((asset) => asset.index));
+  const images: Array<RenderImage | null> = Array.from(
+    { length: lastIndex + 1 },
+    () => null,
+  );
+  await Promise.all(
+    assets.map(async (asset) => {
+      try {
+        const buffer = await downloadFile(
+          "generated-documents",
+          asset.storagePath,
+        );
+        images[asset.index] = {
+          buffer,
+          mimeType: asset.mimeType,
+          caption: asset.caption,
+          altText: asset.altText,
+        };
+      } catch (error: any) {
+        logger.warn(
+          { error: error?.message, storagePath: asset.storagePath },
+          "generated figure download failed; export will keep the placeholder",
+        );
+      }
+    }),
+  );
+  return images;
+}
+
 async function loadDocumentRenderContext(
   document: {
     generation_job_id?: string | null;
     content_json?: any;
   },
   userId: string,
-): Promise<{ templateBuffer?: Buffer; metadata: RenderMetadata }> {
+): Promise<{
+  templateBuffer?: Buffer;
+  metadata: RenderMetadata;
+  images: Array<RenderImage | null>;
+}> {
   const storedMetadata =
     (document.content_json?.metadata as RenderMetadata | undefined) ?? {};
   const metadata: RenderMetadata = {
@@ -323,7 +368,8 @@ async function loadDocumentRenderContext(
   metadata.studentName =
     storedMetadata.studentName ?? profile.data?.display_name ?? undefined;
 
-  if (!document.generation_job_id) return { metadata };
+  const images = await loadGeneratedImages(storedMetadata);
+  if (!document.generation_job_id) return { metadata, images };
 
   const { data: job } = await supabaseAdmin
     .from("generation_jobs")
@@ -339,14 +385,16 @@ async function loadDocumentRenderContext(
       .eq("id", projectId)
       .eq("owner_id", userId)
       .single();
-    if (project?.title) metadata.projectTitle = project.title;
+    if (project?.title && !storedMetadata.projectTitle) {
+      metadata.projectTitle = project.title;
+    }
   }
 
   const templateVersionId = (job as any)?.template_version_id as
     | string
     | null
     | undefined;
-  if (!templateVersionId) return { metadata };
+  if (!templateVersionId) return { metadata, images };
 
   const { data: version } = await supabaseAdmin
     .from("template_versions")
@@ -355,17 +403,17 @@ async function loadDocumentRenderContext(
     .single();
 
   const storagePath = (version as any)?.storage_path as string | undefined;
-  if (!storagePath) return { metadata };
+  if (!storagePath) return { metadata, images };
 
   try {
     const templateBuffer = await downloadFile("templates", storagePath);
-    return { templateBuffer, metadata };
+    return { templateBuffer, metadata, images };
   } catch (error: any) {
     logger.warn(
       { error: error?.message, templateVersionId },
       "template download for export failed; using generic layout",
     );
-    return { metadata };
+    return { metadata, images };
   }
 }
 
@@ -406,6 +454,7 @@ async function ensureDocxExport(
     templateSpec: spec,
     templateBuffer: renderContext.templateBuffer,
     metadata: renderContext.metadata,
+    images: renderContext.images,
     outputFormat: "docx",
   });
 
@@ -476,12 +525,23 @@ router.get(
         return;
       }
 
+      const filename = documentExportFilename(
+        (document as any).title,
+        (document as any).version_number,
+        "docx",
+      );
       const signedUrl = await getSignedUrl(
         "generated-documents",
         exportResult.path,
         300,
+        filename,
       );
-      res.json({ downloadUrl: signedUrl, format: "docx", expiresIn: 300 });
+      res.json({
+        downloadUrl: signedUrl,
+        filename,
+        format: "docx",
+        expiresIn: 300,
+      });
 
       auditLog({
         user_id: userId,
@@ -519,8 +579,23 @@ router.get(
 
       const pdfPath = document.pdf_storage_path as string | null;
       if (pdfPath) {
-        const signedUrl = await getSignedUrl("generated-documents", pdfPath, 300);
-        res.json({ downloadUrl: signedUrl, format: "pdf", expiresIn: 300 });
+        const filename = documentExportFilename(
+          (document as any).title,
+          (document as any).version_number,
+          "pdf",
+        );
+        const signedUrl = await getSignedUrl(
+          "generated-documents",
+          pdfPath,
+          300,
+          filename,
+        );
+        res.json({
+          downloadUrl: signedUrl,
+          filename,
+          format: "pdf",
+          expiresIn: 300,
+        });
 
         auditLog({
           user_id: userId,
@@ -583,8 +658,23 @@ router.get(
           .update({ pdf_storage_path: pdfStoragePath })
           .eq("id", id);
 
-        const signedUrl = await getSignedUrl("generated-documents", pdfStoragePath, 300);
-        res.json({ downloadUrl: signedUrl, format: "pdf", expiresIn: 300 });
+        const filename = documentExportFilename(
+          (document as any).title,
+          (document as any).version_number,
+          "pdf",
+        );
+        const signedUrl = await getSignedUrl(
+          "generated-documents",
+          pdfStoragePath,
+          300,
+          filename,
+        );
+        res.json({
+          downloadUrl: signedUrl,
+          filename,
+          format: "pdf",
+          expiresIn: 300,
+        });
 
         auditLog({
           user_id: userId,
